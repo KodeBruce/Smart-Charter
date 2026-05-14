@@ -8,9 +8,9 @@ import {
   ChevronRight, Download, Users,
   MessageSquare, Files, Upload, MoreVertical, Trash2, Edit3
 } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
-import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
+import { db, auth, OperationType, handleFirestoreError, formatFirebaseDate } from '../lib/firebase';
 import { doc, onSnapshot, query, collection, where, setDoc, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore';
+import { generateText } from '../services/geminiService';
 
 interface AuditLog {
   id: string;
@@ -157,7 +157,9 @@ export default function ProjectWorkspace() {
     try {
       await deleteDoc(doc(db, 'projects', id));
       navigate('/projects');
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Delete failed:", error);
+      alert("Failed to delete workspace. You may not have permission if you are not the owner.");
       handleFirestoreError(error, OperationType.DELETE, `projects/${id}`);
     }
   };
@@ -174,7 +176,7 @@ export default function ProjectWorkspace() {
         id: docId,
         name: file.name,
         status: 'Review Required',
-        type: file.type.includes('pdf') ? 'PDF' : 'Word Doc',
+        type: (file.type || '').includes('pdf') ? 'PDF' : 'Word Doc',
         source: 'Vault',
         ownerId: auth.currentUser.uid,
         projectId: id,
@@ -232,7 +234,8 @@ export default function ProjectWorkspace() {
     try {
       await deleteDoc(doc(db, 'contracts', docId));
       setActiveDocMenuId(null);
-    } catch (error) {
+    } catch (error: any) {
+      alert("Failed to delete document. You may not have permission.");
       handleFirestoreError(error, OperationType.DELETE, `contracts/${docId}`);
     }
   };
@@ -289,15 +292,13 @@ export default function ProjectWorkspace() {
     if (!draftPrompt.trim()) return;
     setIsDrafting(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Draft professional legal terms for a contract based on these requirements: ${draftPrompt}. 
+      const prompt = `Draft professional legal terms for a contract based on these requirements: ${draftPrompt}. 
         The jurisdiction is ${jurisdiction}. 
         Apply specific laws and regulations relevant to ${jurisdiction} (e.g. Labor Law, GDPR, Companies Act). 
-        Use professional legal language, clear section headings, and standard liability/termination logic.`
-      });
-      setDraftResult(response.text || '');
+        Use professional legal language, clear section headings, and standard liability/termination logic.`;
+      
+      const text = await generateText(prompt);
+      setDraftResult(text);
     } catch (err) {
       console.error(err);
       setDraftResult('Error generating draft. Please try again.');
@@ -592,13 +593,15 @@ export default function ProjectWorkspace() {
                           <span className="text-[10px] font-bold uppercase tracking-widest">Collaborators</span>
                         </button>
                         <div className="h-px bg-outline mx-2 my-1" />
-                        <button 
-                          onClick={handleDeleteProject}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-error/10 text-error transition-all text-left"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Delete Project</span>
-                        </button>
+                        {project?.ownerId === auth.currentUser?.uid && (
+                          <button 
+                            onClick={handleDeleteProject}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-error/10 text-error transition-all text-left"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Delete Project</span>
+                          </button>
+                        )}
                       </motion.div>
                     </>
                   )}
@@ -610,8 +613,8 @@ export default function ProjectWorkspace() {
 
         <div className="flex items-center gap-3">
           <div className="flex -space-x-2">
-            {(project?.members || []).slice(0, 3).map((email: string, i: number) => (
-               <div key={`workspace-avatar-${i}`} className="w-7 h-7 rounded-full border-2 border-surface bg-primary text-white flex items-center justify-center text-[10px] font-bold overflow-hidden" title={email}>
+            {(project?.members || []).slice(0, 3).map((email: string) => (
+               <div key={`workspace-avatar-${email}`} className="w-7 h-7 rounded-full border-2 border-surface bg-primary text-white flex items-center justify-center text-[10px] font-bold overflow-hidden" title={email}>
                   {email[0].toUpperCase()}
                </div>
             ))}
@@ -735,7 +738,7 @@ export default function ProjectWorkspace() {
                               {docItem.type === 'Signature' ? 'Execution Hub' : 'Analysis Vault'}
                             </span>
                             <div className="w-1 h-1 rounded-full bg-outline" />
-                            <span className="text-[9px] font-bold text-primary/40 uppercase tracking-[0.1em]">Edited {docItem.lastEdited}</span>
+                            <span className="text-[9px] font-bold text-primary/40 uppercase tracking-[0.1em]">Edited {formatFirebaseDate(docItem.lastEdited)}</span>
                           </div>
                         </div>
                       </div>
@@ -744,8 +747,8 @@ export default function ProjectWorkspace() {
                         <div className="flex flex-col items-end mr-4">
                            <span className={`text-[8px] font-extrabold uppercase tracking-widest ${
                               docItem.status === 'Signed' ? 'text-success' : 
-                              docItem.status === 'Review' ? 'text-warning' : 
-                              docItem.status === 'Draft' ? 'text-blue-500' :
+                              docItem.status === 'Review Complete' ? 'text-warning' : 
+                              docItem.status === 'Drafting' ? 'text-blue-500' :
                               'text-primary/60'
                             }`}>
                               {docItem.status}
@@ -912,7 +915,7 @@ export default function ProjectWorkspace() {
                                    <div className="p-4 bg-surface rounded-2xl border border-outline shadow-sm">
                                       <div className="flex justify-between items-start mb-2">
                                          <p className="text-[11px] font-bold text-primary">{log.userName}</p>
-                                         <span className="text-[9px] font-bold text-primary/30 uppercase">{log.timestamp}</span>
+                                         <span className="text-[9px] font-bold text-primary/30 uppercase">{formatFirebaseDate(log.timestamp)}</span>
                                       </div>
                                       <p className="text-xs text-on-surface-variant font-medium">{log.action}</p>
                                       {log.details && (
@@ -1201,7 +1204,7 @@ export default function ProjectWorkspace() {
                              Cancel
                            </button>
                            <button 
-                             disabled={!signerEmail.includes('@')}
+                             disabled={!(signerEmail || '').includes('@')}
                              onClick={handleAddSigner}
                              className="flex-[2] py-2 bg-primary text-white rounded-lg text-[9px] font-bold uppercase tracking-widest disabled:opacity-50"
                            >
@@ -1292,7 +1295,7 @@ export default function ProjectWorkspace() {
                           <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/40 ml-1 block">Current Members</label>
                           <div className="space-y-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-2">
                              {(project?.members || []).map((email: string) => (
-                               <div key={email} className="flex items-center justify-between p-3 bg-surface-container-low border border-outline rounded-xl group/member">
+                               <div key={`share-member-${email}`} className="flex items-center justify-between p-3 bg-surface-container-low border border-outline rounded-xl group/member">
                                   <div className="flex items-center gap-3">
                                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
                                         {email[0].toUpperCase()}
@@ -1317,7 +1320,7 @@ export default function ProjectWorkspace() {
                         Cancel
                       </button>
                       <button 
-                        disabled={!shareEmail.includes('@')}
+                        disabled={!(shareEmail || '').includes('@')}
                         onClick={handleShareProject}
                         className="flex-[2] py-4 bg-primary text-white rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                       >

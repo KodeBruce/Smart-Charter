@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Files, ShieldAlert, Settings, Plus, HelpCircle, Moon, Sun, Search, FolderOpen } from 'lucide-react';
+import { LayoutDashboard, FileText, Files, ShieldAlert, Settings, Plus, HelpCircle, Moon, Sun, Search, FolderOpen, PenTool } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useFirebase } from '../lib/FirebaseProvider';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,6 +17,7 @@ export default function Sidebar() {
     { icon: FolderOpen, label: 'Projects', path: '/projects' },
     { icon: FileText, label: 'Repository', path: '/repository' },
     { icon: Files, label: 'Document Comparison', path: '/compare' },
+    { icon: PenTool, label: 'E-Sign', path: '/esign' },
     { icon: ShieldAlert, label: 'Risk Playbook', path: '/risk' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
@@ -45,9 +46,13 @@ export default function Sidebar() {
         <nav id="walkthrough-nav" className="flex flex-col gap-3 flex-1 relative z-10">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
-            const targetId = item.label === 'Projects' ? 'walkthrough-projects' : 
+            const targetId = item.label === 'Dashboard' ? 'walkthrough-dashboard' :
+                          item.label === 'Projects' ? 'walkthrough-projects' : 
                           item.label === 'Repository' ? 'walkthrough-repository' :
-                          item.label === 'Risk Playbook' ? 'walkthrough-risk' : undefined;
+                          item.label === 'Document Comparison' ? 'walkthrough-compare' :
+                          item.label === 'E-Sign' ? 'walkthrough-esign' :
+                          item.label === 'Risk Playbook' ? 'walkthrough-risk' :
+                          item.label === 'Settings' ? 'walkthrough-settings' : undefined;
             return (
               <NavLink
                 key={item.path}

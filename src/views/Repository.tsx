@@ -4,13 +4,14 @@ import {
   FileText, Upload, Filter, Search, 
   ChevronLeft, ChevronRight, MoreVertical, 
   Banknote, Files, CalendarClock, Gauge, Sparkles,
-  ArrowUpRight, Download, Table, Calendar, Bell, Plus
+  ArrowUpRight, Download, Table, Calendar, Bell, Plus, Trash2, Edit3, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'motion/react';
 import IngestModal from '../components/IngestModal';
 import { ContractAnalysis } from '../services/geminiService';
-import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
-import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { db, auth, OperationType, handleFirestoreError, toStandardDate, formatFirebaseDate } from '../lib/firebase';
+import { collection, onSnapshot, query, where, orderBy, setDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 
 const stats = [
   { label: 'Total Value', value: '-', icon: Banknote, color: 'text-secondary-content' },
@@ -24,11 +25,67 @@ export default function Repository() {
   const [isIngestOpen, setIsIngestOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [allContracts, setAllContracts] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingContract, setEditingContract] = useState<any | null>(null);
+  const [editedFields, setEditedFields] = useState({
+    name: '',
+    counterparty: '',
+    category: '',
+    value: '',
+    expiry: '',
+    content: ''
+  });
+
+  const handleDeleteContract = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    try {
+      await deleteDoc(doc(db, 'contracts', id));
+      setActiveMenuId(null);
+    } catch (error: any) {
+      alert("Failed to delete document. You may not have permission.");
+      handleFirestoreError(error, OperationType.DELETE, `contracts/${id}`);
+    }
+  };
+
+  const handleUpdateContract = async () => {
+    if (!editingContract) return;
+    try {
+      await setDoc(doc(db, 'contracts', editingContract.id), {
+        name: editedFields.name,
+        counterparty: editedFields.counterparty,
+        category: editedFields.category,
+        value: editedFields.value,
+        expiryDate: editedFields.expiry, // Note: it was mapped to expiryDate in onSnapshot
+        content: editedFields.content,
+        projectId: editingContract.projectId || null,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      setIsEditModalOpen(false);
+      setEditingContract(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `contracts/${editingContract.id}`);
+    }
+  };
 
   useEffect(() => {
     if (!auth.currentUser) return;
+
+    // Fetch Projects for names mapping
+    const qProjects = query(
+      collection(db, 'projects'),
+      where('ownerId', '==', auth.currentUser.uid)
+    );
+
+    const unsubscribeProjects = onSnapshot(qProjects, (snapshot) => {
+      const projMap: Record<string, string> = {};
+      snapshot.docs.forEach(d => projMap[d.id] = d.data().name);
+      setProjects(projMap);
+    });
 
     const q = query(
       collection(db, 'contracts'),
@@ -52,7 +109,10 @@ export default function Repository() {
       handleFirestoreError(error, OperationType.LIST, 'contracts');
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubscribeProjects();
+    };
   }, [auth.currentUser]);
 
   const handleIngestSuccess = (analysis: any) => {
@@ -83,11 +143,11 @@ export default function Repository() {
   const [expiryFilter, setExpiryFilter] = useState<'all' | '30d' | '90d' | 'expired'>('all');
   const [activeSource, setActiveSource] = useState<'all' | 'Vault' | 'Hub'>('all');
 
-  const getDaysRemaining = (expiry: string) => {
+  const getDaysRemaining = (expiry: any) => {
     if (!expiry || expiry === 'Indefinite' || expiry === 'TBD') return Infinity;
     try {
-      const exp = new Date(expiry);
-      if (isNaN(exp.getTime())) return Infinity;
+      const exp = toStandardDate(expiry);
+      if (!exp || isNaN(exp.getTime())) return Infinity;
       const today = new Date();
       const diffTime = exp.getTime() - today.getTime();
       return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -96,11 +156,11 @@ export default function Repository() {
     }
   };
 
-  const getYear = (expiry: string) => {
+  const getYear = (expiry: any) => {
     if (!expiry || expiry === 'Indefinite' || expiry === 'TBD') return 'Indefinite';
     try {
-      const date = new Date(expiry);
-      return isNaN(date.getTime()) ? 'Indefinite' : date.getFullYear().toString();
+      const date = toStandardDate(expiry);
+      return !date || isNaN(date.getTime()) ? 'Indefinite' : date.getFullYear().toString();
     } catch {
       return 'Indefinite';
     }
@@ -344,6 +404,7 @@ export default function Repository() {
                   </div>
                 </th>
                 <th className="px-1 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80">Document Name</th>
+                <th className="px-5 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80">Workspace</th>
                 <th className="px-5 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80">Category</th>
                 <th className="px-5 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80">Started</th>
                 <th className="px-5 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80 text-right">Value</th>
@@ -390,6 +451,15 @@ export default function Repository() {
                     </div>
                   </td>
                   <td className="px-5 py-3">
+                    {item.projectId ? (
+                      <span className="text-[9px] font-bold text-secondary-content bg-secondary/10 px-2 py-0.5 rounded-md border border-secondary/20">
+                        {projects[item.projectId] || 'Linking...'}
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-bold text-on-surface/20 uppercase tracking-[0.2em]">Personal Vault</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3">
                      <span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest ${
                         item.source === 'Hub' ? 'bg-secondary text-primary' : 'bg-surface-container-high text-primary/60'
                      }`}>
@@ -401,9 +471,9 @@ export default function Repository() {
                         {item.category}
                      </span>
                   </td>
-                  <td className="px-5 py-3 font-bold text-on-surface/40 tracking-tight text-[10px]">{item.startDate}</td>
+                  <td className="px-5 py-3 font-bold text-on-surface/40 tracking-tight text-[10px]">{formatFirebaseDate(item.startDate)}</td>
                   <td className="px-5 py-3 font-bold text-on-surface tracking-tight text-right">{item.value}</td>
-                  <td className="px-5 py-3 font-bold text-on-surface tracking-tight text-right">{item.expiry}</td>
+                  <td className="px-5 py-3 font-bold text-on-surface tracking-tight text-right">{formatFirebaseDate(item.expiry)}</td>
                   <td className="px-5 py-3 font-bold text-right">
                     <span className={`text-[10px] ${getDaysRemaining(item.expiry) < 90 ? 'text-error' : 'text-primary/60'}`}>
                        {item.expiry === 'Indefinite' ? '—' : `${getDaysRemaining(item.expiry)}d`}
@@ -419,9 +489,63 @@ export default function Repository() {
                     </span>
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <button className="p-1.5 rounded-full hover:bg-surface text-on-surface-variant/30 hover:text-primary transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-outline">
-                      <MoreVertical className="h-3 w-3" />
-                    </button>
+                    <div className="relative inline-block text-left">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(activeMenuId === item.id ? null : item.id);
+                        }}
+                        className={`p-1.5 rounded-full hover:bg-surface text-on-surface-variant/30 hover:text-primary transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-outline ${activeMenuId === item.id ? 'opacity-100 border-outline bg-surface text-primary' : ''}`}
+                      >
+                        <MoreVertical className="h-3 w-3" />
+                      </button>
+
+                      <AnimatePresence>
+                        {activeMenuId === item.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={(e) => {
+                               e.stopPropagation();
+                               setActiveMenuId(null);
+                            }} />
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                              className="absolute right-0 top-full mt-2 w-48 bg-surface border border-outline rounded-2xl shadow-2xl z-20 py-2 p-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button 
+                                onClick={() => {
+                                  setEditingContract(item);
+                                  setEditedFields({
+                                    name: item.name || '',
+                                    counterparty: item.counterparty || '',
+                                    category: item.category || '',
+                                    value: item.value || '',
+                                    expiry: item.expiryDate || item.expiry || '',
+                                    content: item.content || ''
+                                  });
+                                  setIsEditModalOpen(true);
+                                  setActiveMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container text-primary transition-all text-left"
+                              >
+                                <Edit3 className="h-3.5 w-3.5 text-primary/40" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest">Edit Details</span>
+                              </button>
+                              <div className="h-px bg-outline mx-2 my-1" />
+                              <button 
+                                onClick={(e) => handleDeleteContract(item.id, e)}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-error/10 text-error transition-all text-left"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest">Delete Contract</span>
+                              </button>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -509,6 +633,119 @@ export default function Repository() {
         onClose={() => setIsIngestOpen(false)} 
         onSuccess={handleIngestSuccess} 
       />
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface border border-outline rounded-[32px] p-8 w-full max-w-lg shadow-2xl"
+            >
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-primary tracking-tight">Edit Document Details</h2>
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface/40">Manually update legal metadata</p>
+                </div>
+                <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-surface-container rounded-full transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Document Name</label>
+                  <input 
+                    type="text"
+                    value={editedFields.name}
+                    onChange={(e) => setEditedFields({...editedFields, name: e.target.value})}
+                    className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Counterparty</label>
+                    <input 
+                      type="text"
+                      value={editedFields.counterparty}
+                      onChange={(e) => setEditedFields({...editedFields, counterparty: e.target.value})}
+                      className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Category</label>
+                    <input 
+                      type="text"
+                      value={editedFields.category}
+                      onChange={(e) => setEditedFields({...editedFields, category: e.target.value})}
+                      className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Value</label>
+                    <input 
+                      type="text"
+                      value={editedFields.value}
+                      onChange={(e) => setEditedFields({...editedFields, value: e.target.value})}
+                      className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Expiry Date</label>
+                    <input 
+                      type="text"
+                      value={editedFields.expiry}
+                      onChange={(e) => setEditedFields({...editedFields, expiry: e.target.value})}
+                      className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Move to Workspace</label>
+                  <select 
+                    value={editingContract.projectId || ''}
+                    onChange={(e) => {
+                      const newProjectId = e.target.value || null;
+                      setEditingContract({...editingContract, projectId: newProjectId});
+                    }}
+                    className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="">Personal Vault (No Workspace)</option>
+                    {Object.entries(projects).map(([id, name]) => (
+                      <option key={id} value={id}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Document Content</label>
+                  <textarea 
+                    rows={6}
+                    value={editedFields.content}
+                    onChange={(e) => setEditedFields({...editedFields, content: e.target.value})}
+                    placeholder="Enter document text here..."
+                    className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-medium outline-none resize-none"
+                  />
+                </div>
+
+                <button 
+                  onClick={handleUpdateContract}
+                  className="w-full py-4 bg-primary text-white rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all mt-4"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

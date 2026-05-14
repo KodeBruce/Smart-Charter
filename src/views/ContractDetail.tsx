@@ -345,7 +345,7 @@ export default function ContractDetail() {
                     </div>
                   </header>
 
-            <section id="executive" className="relative pl-6 group">
+            <section id="walkthrough-extraction" className="relative pl-6 group">
               <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-secondary/50" />
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -799,7 +799,7 @@ export default function ContractDetail() {
                   <h3 className="text-[9px] font-bold text-primary/40 uppercase tracking-widest mb-2">Remediated Language</h3>
                   <div className="p-4 bg-secondary/[0.02] border border-secondary/20 rounded-xl shadow-inner group">
                     <p className="text-[11px] text-on-surface font-semibold leading-relaxed tracking-tight group-hover:text-primary transition-colors">
-                      {selectedClause.title.includes('Liability') ? (
+                      {(selectedClause.title || '').includes('Liability') ? (
                         `"Notwithstanding any other provision, the Provider's total aggregate liability arising out of or related to this Agreement (including data breach) shall not exceed two (2) times the total fees paid by Client in the twelve (12) months preceding the claim."`
                       ) : (
                         `"The parties agree that ${selectedClause.title} shall be modified to align with industry standard protections and Delaware governing law, ensuring mutual liability caps and proportional risk allocation."`

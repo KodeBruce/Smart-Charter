@@ -6,7 +6,7 @@ import {
   Calendar, FileText, UserPlus, 
   ChevronRight, Clock, ShieldCheck, X, Trash2, Edit3
 } from 'lucide-react';
-import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
+import { db, auth, OperationType, handleFirestoreError, formatFirebaseDate } from '../lib/firebase';
 import { collection, onSnapshot, query, where, setDoc, doc, serverTimestamp, orderBy, or, deleteDoc } from 'firebase/firestore';
 
 interface Project {
@@ -15,6 +15,7 @@ interface Project {
   description: string;
   count: number;
   lastUpdated: any;
+  updatedAt?: any;
   status: 'Active' | 'Drafting' | 'Review' | 'Complete';
   lead: string;
   category: 'Strategic' | 'HR' | 'Legal' | 'Vendor';
@@ -83,6 +84,7 @@ export default function Projects() {
       lead: newProject.lead,
       category: newProject.category,
       ownerId: auth.currentUser.uid,
+      members: [auth.currentUser.email],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
@@ -108,7 +110,9 @@ export default function Projects() {
     try {
       await deleteDoc(doc(db, 'projects', id));
       setActiveMenuId(null);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Delete failed:", error);
+      alert("Failed to delete workspace. You may not have permission if you are not the owner.");
       handleFirestoreError(error, OperationType.DELETE, `projects/${id}`);
     }
   };
@@ -394,13 +398,15 @@ export default function Projects() {
                               <Edit3 className="h-3.5 w-3.5 text-primary/40" />
                               <span className="text-[10px] font-bold uppercase tracking-widest">Edit Workspace</span>
                             </button>
-                            <button 
-                              onClick={(e) => handleDeleteProject(project.id, e)}
-                              className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-error/10 text-error transition-all text-left"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              <span className="text-[10px] font-bold uppercase tracking-widest">Delete Workspace</span>
-                            </button>
+                            {project.ownerId === auth.currentUser?.uid && (
+                              <button 
+                                onClick={(e) => handleDeleteProject(project.id, e)}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-error/10 text-error transition-all text-left"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest">Delete Workspace</span>
+                              </button>
+                            )}
                           </motion.div>
                         </>
                       )}
@@ -421,7 +427,7 @@ export default function Projects() {
                   </div>
                   <div className="flex items-center gap-1.5 text-[10px] font-bold text-on-surface/60 uppercase tracking-widest leading-none">
                     <Clock className="h-3 w-3" />
-                    <span>Updated {project.lastUpdated}</span>
+                    <span>Updated {formatFirebaseDate(project.updatedAt || project.lastUpdated)}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-4 border-t border-outline/50">

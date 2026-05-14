@@ -79,7 +79,27 @@ service cloud.firestore {
              data.createdAt == request.time;
     }
 
+    function isValidESignDoc(data) {
+      return data.name is string && data.name.size() <= 255 &&
+             data.ownerId is string &&
+             data.status in ['Draft', 'Pending', 'Partially Signed', 'Completed'] &&
+             (data.get('signers', []) is list) &&
+             (data.get('fields', []) is list) &&
+             data.uploadedAt is timestamp;
+    }
+
     // --- Path Routes ---
+
+    match /esign_documents/{docId} {
+      allow list: if isEmailVerified() && (resource.data.ownerId == request.auth.uid || request.auth.token.email in resource.data.signers.map(s, s.email));
+      allow get: if isEmailVerified() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().signers.map(s, s.email));
+      allow create: if isEmailVerified() && isValidESignDoc(incoming()) && isValidId(docId);
+      allow delete: if isEmailVerified() && existing().ownerId == request.auth.uid;
+      allow update: if isEmailVerified() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().signers.map(s, s.email)) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['signers', 'status', 'updatedAt', 'fields']) &&
+        (incoming().get('updatedAt', null) == null || incoming().updatedAt == request.time)
+      );
+    }
 
     match /users/{userId} {
       allow get: if isEmailVerified() && userId == request.auth.uid;
@@ -109,7 +129,7 @@ service cloud.firestore {
                        (existing().ownerId == request.auth.uid || (existing().get('projectId', null) != null && isProjectOwnerOrMember(existing().projectId))) &&
                        isValidContract(incoming()) && (
                          // Action: Meta Update
-                         (incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'projectId', 'updatedAt', 'auditLogs', 'status']) && incoming().updatedAt == request.time) ||
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'projectId', 'updatedAt', 'auditLogs', 'status', 'counterparty', 'category', 'value', 'expiry', 'startDate']) && incoming().updatedAt == request.time) ||
                          // Action: Analysis Result
                          (incoming().diff(existing()).affectedKeys().hasOnly(['riskLevel', 'overallRiskScore', 'status', 'content', 'updatedAt', 'auditLogs']) && incoming().updatedAt == request.time)
                        );

@@ -96,6 +96,43 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "contractId", "title", "description", "priority", "status", "createdAt"]
+    },
+    "ESignDocument": {
+      "title": "ESignDocument",
+      "description": "Document for electronic signature workflow",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "status": { "type": "string", "enum": ["Draft", "Pending", "Partially Signed", "Completed"] },
+        "uploadedAt": { "type": "string", "format": "date-time" },
+        "signers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "email": { "type": "string" },
+              "signed": { "type": "boolean" },
+              "signedAt": { "type": "string" }
+            }
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["signature", "date"] },
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "signerIndex": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["id", "name", "ownerId", "status", "uploadedAt", "signers"]
     }
   },
   "firestore": {
@@ -110,6 +147,10 @@
     "contracts/{contractId}": {
       "schema": "Contract",
       "description": "Main contract repository"
+    },
+    "esign_documents/{docId}": {
+      "schema": "ESignDocument",
+      "description": "Electronic signature document workflows"
     },
     "contracts/{contractId}/insights/{insightId}": {
       "schema": "Insight",

@@ -13,6 +13,7 @@ import RiskPlaybook from './views/RiskPlaybook';
 import CompareContracts from './views/CompareContracts';
 import Projects from './views/Projects';
 import ProjectWorkspace from './views/ProjectWorkspace';
+import ESign from './views/ESign';
 import Settings from './views/Settings';
 import Login from './views/Login';
 import { useFirebase } from './lib/FirebaseProvider';
@@ -56,6 +57,7 @@ export default function App() {
               <Route path="/repository" element={<Repository />} />
               <Route path="/contract/:id" element={<ContractDetail />} />
               <Route path="/compare" element={<CompareContracts />} />
+              <Route path="/esign" element={<ESign />} />
               <Route path="/risk" element={<RiskPlaybook />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/project/:id" element={<ProjectWorkspace />} />

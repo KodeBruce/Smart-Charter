@@ -6,7 +6,8 @@ import {
   Search, Info, Zap, Scale, FileWarning,
   Sparkles, Loader2
 } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { generateJson } from '../services/geminiService';
+import { SchemaType } from "@google/generative-ai";
 
 interface AuditLog {
   id: string;
@@ -154,7 +155,7 @@ export default function RiskPlaybook() {
   };
 
   const filteredPlaybooks = playbooks.filter(p => 
-    p.title.toLowerCase().includes(searchQuery.toLowerCase())
+    (p.title?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   const startEditing = () => {
@@ -201,10 +202,7 @@ export default function RiskPlaybook() {
     setAiError(null);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Generate a professional contract review playbook for: ${aiPrompt}. 
+      const prompt = `Generate a professional contract review playbook for: ${aiPrompt}. 
         JURISDICTION: ${selectedJurisdiction}
         
         The playbook MUST reference specific legal frameworks relevant to ${selectedJurisdiction} (e.g. GDPR for EU, Companies Act for UK/SA, UCC for US) AND relevant international frameworks (e.g. UNIDROIT, ICC).
@@ -221,50 +219,47 @@ export default function RiskPlaybook() {
           "jurisdictionalAlert": "Brief alert about local laws",
           "guidelines": [{ "title": "Clause Name", "description": "Specific internal guideline for reviewing this clause, referencing ${selectedJurisdiction} legal requirements where applicable", "mandatory": boolean, "standard_language": "Optional company-preferred wording" }],
           "riskThresholds": [{ "category": "Category Name", "limit": "Max/Min Acceptable value", "indicator": "Why this matters" }]
-        }`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              risk: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
-              description: { type: Type.STRING },
-              jurisdiction: { type: Type.STRING },
-              referencedFrameworks: { type: Type.ARRAY, items: { type: Type.STRING } },
-              jurisdictionalAlert: { type: Type.STRING },
-              guidelines: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    title: { type: Type.STRING },
-                    description: { type: Type.STRING },
-                    mandatory: { type: Type.BOOLEAN },
-                    standard_language: { type: Type.STRING }
-                  },
-                  required: ["title", "description", "mandatory"]
-                }
-              },
-              riskThresholds: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    category: { type: Type.STRING },
-                    limit: { type: Type.STRING },
-                    indicator: { type: Type.STRING }
-                  },
-                  required: ["category", "limit", "indicator"]
-                }
-              }
-            },
-            required: ["title", "risk", "description", "jurisdiction", "referencedFrameworks", "guidelines", "riskThresholds"]
-          }
-        }
-      });
+        }`;
 
-      const result = JSON.parse(response.text || '{}');
+      const schema = {
+        type: SchemaType.OBJECT,
+        properties: {
+          title: { type: SchemaType.STRING },
+          risk: { type: SchemaType.STRING, enum: ["Low", "Medium", "High"], format: "enum" },
+          description: { type: SchemaType.STRING },
+          jurisdiction: { type: SchemaType.STRING },
+          referencedFrameworks: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          jurisdictionalAlert: { type: SchemaType.STRING },
+          guidelines: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                title: { type: SchemaType.STRING },
+                description: { type: SchemaType.STRING },
+                mandatory: { type: SchemaType.BOOLEAN },
+                standard_language: { type: SchemaType.STRING }
+              },
+              required: ["title", "description", "mandatory"]
+            }
+          },
+          riskThresholds: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                category: { type: SchemaType.STRING },
+                limit: { type: SchemaType.STRING },
+                indicator: { type: SchemaType.STRING }
+              },
+              required: ["category", "limit", "indicator"]
+            }
+          }
+        },
+        required: ["title", "risk", "description", "jurisdiction", "referencedFrameworks", "guidelines", "riskThresholds"]
+      };
+
+      const result = await generateJson(prompt, schema);
       const newPlaybook: PlaybookDetail = {
         ...result,
         id: crypto.randomUUID(),
@@ -307,7 +302,7 @@ export default function RiskPlaybook() {
           </div>
         </header>
 
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <section id="walkthrough-risk" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPlaybooks.map((playbook, i) => (
             <motion.div
               key={playbook.id}

@@ -279,7 +279,7 @@ export default function CompareContracts() {
                           </button>
                           <div className="flex items-center justify-between mb-4">
                             <span className="text-[8px] font-bold text-primary/30 uppercase tracking-[0.2em]">Document {i + 1}</span>
-                            <div className={`w-1.5 h-1.5 rounded-full ${contract.risk.includes('High') ? 'bg-error' : 'bg-secondary'}`} />
+                            <div className={`w-1.5 h-1.5 rounded-full ${(contract.risk || '').includes('High') ? 'bg-error' : 'bg-secondary'}`} />
                           </div>
                           <h3 className="text-sm font-bold text-primary tracking-tight leading-snug h-10 line-clamp-2 mb-2">
                             {contract.name}
@@ -314,18 +314,18 @@ export default function CompareContracts() {
 
                         <div className="h-48 pt-8">
                           <div className={`p-5 rounded-2xl border transition-all h-full ${
-                            contract.risk.includes('High') 
+                            (contract.risk || '').includes('High') 
                               ? 'bg-error/[0.04] border-error/20' 
                               : 'bg-surface-container-lowest border-outline'
                           }`}>
                             <div className="flex items-center gap-2 mb-4">
-                              <Check className={`h-3.5 w-3.5 ${contract.risk.includes('High') ? 'text-error/60' : 'text-secondary-content'}`} />
+                              <Check className={`h-3.5 w-3.5 ${(contract.risk || '').includes('High') ? 'text-error/60' : 'text-secondary-content'}`} />
                               <span className="text-[7px] font-extrabold uppercase tracking-widest text-primary/50">Legal Assessment</span>
                             </div>
                             <p className={`text-[11px] font-medium leading-relaxed ${
-                              contract.risk.includes('High') ? 'text-error/80' : 'text-on-surface/70'
+                              (contract.risk || '').includes('High') ? 'text-error/80' : 'text-on-surface/70'
                             }`}>
-                              {contract.risk.includes('High') 
+                              {(contract.risk || '').includes('High') 
                                 ? 'Critical risk vectors identified during review. Immediate attention to liability caps recommended to mitigate exposure.'
                                 : 'Standard operational document with low strategic risk. Compliance profile matches current internal legal standards.'}
                             </p>

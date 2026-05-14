@@ -20,9 +20,17 @@ const steps: Step[] = [
     position: 'center'
   },
   {
+    id: 'dashboard',
+    targetId: 'walkthrough-dashboard',
+    title: 'Your Command Center.',
+    content: 'Get a quick snapshot of your active projects, recent uploads, and overall contract health at a single glance.',
+    audioText: 'Welcome to your Command Center. Here you can get a quick snapshot of your active projects, recent uploads, and overall contract health at a single glance.',
+    position: 'right'
+  },
+  {
     id: 'ingest',
     targetId: 'walkthrough-ingest',
-    title: 'Let\'s get your documents in.',
+    title: 'Import as easy as Drag & Drop.',
     content: 'Just drop your contracts here. I\'ll read through them in seconds, highlighting the important bits and pointing out any potential red flags you should know about.',
     audioText: 'Getting your documents into the system is easy. Just drop your contracts here and I will read through them in seconds, highlighting the important bits and pointing out any potential red flags you should know about.',
     position: 'right'
@@ -30,7 +38,7 @@ const steps: Step[] = [
   {
     id: 'projects',
     targetId: 'walkthrough-projects',
-    title: 'Keep things organized.',
+    title: 'Project Workspaces.',
     content: 'Whether it\'s a big deal or a new batch of agreements, you can group your work into Workspaces. I can even help you draft new terms tailored to your specific country.',
     audioText: 'Keep your work organized with Workspaces. Whether it is a big deal or a new batch of vendor agreements, you can group everything here. I can even help you draft new terms that are legally sound for your specific country.',
     position: 'right'
@@ -38,25 +46,49 @@ const steps: Step[] = [
   {
     id: 'repository',
     targetId: 'walkthrough-repository',
-    title: 'Your bird\'s-eye view.',
+    title: 'Centralized Repository.',
     content: 'This is where all your signed documents live. I\'ll keep an eye on expiry dates and alert you when something is coming up for renewal soon.',
     audioText: 'This repository gives you a bird\'s-eye view of every signed document. I will keep an eye on expiry dates for you and send an alert when something is coming up for renewal, so you are never caught off guard.',
     position: 'right'
   },
   {
+    id: 'compare',
+    targetId: 'walkthrough-compare',
+    title: 'Side-by-side Analysis.',
+    content: 'Need to spot the differences between contract versions? Compare documents instantly to identify changes in clauses and obligations.',
+    audioText: 'Need to spot the differences between contract versions? Use the comparison tool to compare documents instantly and identify changes in clauses and obligations.',
+    position: 'right'
+  },
+  {
+    id: 'esign',
+    targetId: 'walkthrough-esign',
+    title: 'Frictionless E-Sign.',
+    content: 'Send documents for signature, track status in real-time, and securely sign with your digital signature right inside the platform.',
+    audioText: 'Our new e-sign feature lets you send documents for signature, track status in real-time, and securely sign with your digital signature right inside the platform.',
+    position: 'right'
+  },
+  {
     id: 'risk',
     targetId: 'walkthrough-risk',
-    title: 'Review with confidence.',
+    title: 'Risk Guard Playbooks.',
     content: 'We use playbooks to make sure every contract meets your standards. You can use our pre-built ones or I can help you build one that fits your business perfectly.',
     audioText: 'You can review every contract with confidence using our playbooks. They make sure everything meets your standards. You can use our pre-built ones, or we can work together to build a custom one that fits your business perfectly.',
     position: 'right'
   },
   {
+    id: 'settings',
+    targetId: 'walkthrough-settings',
+    title: 'Personalize your Experience.',
+    content: 'Manage your profile, preferences, and security settings to tailor the platform to your specific workflow.',
+    audioText: 'Finally, you can manage your profile, preferences, and security settings in the settings menu to tailor the platform to your specific workflow.',
+    position: 'right'
+  },
+  {
     id: 'extraction',
     targetId: 'walkthrough-extraction',
-    title: 'Explore the details.',
+    title: 'Deep Intelligence.',
     content: 'When you want to get into the weeds, I’ll show you a full timeline of the contract, how it\'s performing, and specific legal citations for any high-risk clauses.',
-    audioText: 'And finally, when you need to get into the weeds, I will show you a full timeline of the contract, how it is performing, and give you specific legal citations for any high-risk clauses. Ready to get started?',
+    audioText: 'And when you need to get into the weeds, I will show you a full timeline of the contract, how it is performing, and give you specific legal citations for any high-risk clauses. Ready to get started?',
     position: 'top'
   }
 ];
@@ -65,26 +97,12 @@ export default function Walkthrough() {
   const [currentStep, setCurrentStep] = useState(-1);
   const [isVisible, setIsVisible] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [targetFound, setTargetFound] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, height: 0 });
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handler = () => {
-      setIsVisible(true);
-      setCurrentStep(0);
-    };
-    window.addEventListener('smart-charter-start-walkthrough', handler);
-
-    // Always start walkthrough after a short delay for better UX
-    const timer = setTimeout(handler, 1500);
-    
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('smart-charter-start-walkthrough', handler);
-    };
-  }, []);
-
-  useEffect(() => {
+  const updateCoords = () => {
     if (currentStep >= 0 && currentStep < steps.length) {
       const step = steps[currentStep];
       if (step.targetId) {
@@ -97,8 +115,62 @@ export default function Walkthrough() {
             width: rect.width,
             height: rect.height
           });
+          setTargetFound(true);
+        } else {
+          setTargetFound(false);
+          setCoords({ top: 0, left: 0, width: 0, height: 0 });
         }
+      } else {
+        setTargetFound(false);
+        setCoords({ top: 0, left: 0, width: 0, height: 0 });
       }
+    }
+  };
+
+  useEffect(() => {
+    if (!isVisible) return;
+    
+    // Initial update
+    updateCoords();
+
+    // Resize observer for dynamic layout changes
+    const observer = new ResizeObserver(() => {
+      updateCoords();
+    });
+
+    observer.observe(document.body);
+    window.addEventListener('resize', updateCoords);
+    window.addEventListener('scroll', updateCoords, true);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateCoords);
+      window.removeEventListener('scroll', updateCoords, true);
+    };
+  }, [currentStep, isVisible]);
+
+  useEffect(() => {
+    const handler = () => {
+      setIsVisible(true);
+      setCurrentStep(0);
+    };
+    window.addEventListener('smart-charter-start-walkthrough', handler);
+
+    // Prompt user to start walkthrough on first visit
+    const lastSession = localStorage.getItem('walkthrough-completed');
+    if (!lastSession) {
+      const timer = setTimeout(handler, 2000);
+      return () => clearTimeout(timer);
+    }
+    
+    return () => {
+      window.removeEventListener('smart-charter-start-walkthrough', handler);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (currentStep >= 0 && currentStep < steps.length) {
+      const step = steps[currentStep];
       
       // Handle Speech
       if (!isMuted) {
@@ -189,7 +261,7 @@ export default function Walkthrough() {
         <defs>
           <mask id="walkthrough-mask">
             <rect x="0" y="0" width="100%" height="100%" fill="white" />
-            {currentStepData?.targetId && coords.width > 0 && (
+            {currentStepData?.targetId && targetFound && coords.width > 0 && (
               <motion.rect 
                 animate={{
                   x: coords.left - 8,
@@ -217,7 +289,7 @@ export default function Walkthrough() {
       </svg>
 
       {/* Spotlight Border & Glow */}
-      {currentStepData?.targetId && (
+      {currentStepData?.targetId && targetFound && (
         <motion.div 
           animate={{
             top: coords.top - 8,
@@ -234,20 +306,43 @@ export default function Walkthrough() {
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
+          ref={tooltipRef}
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className={`absolute pointer-events-auto w-[320px] bg-[#1A1A1A] border border-white/10 rounded-3xl shadow-2xl p-6 transition-all duration-500
-            ${currentStepData.position === 'center' ? 'relative' : ''}
+          className={`absolute pointer-events-auto w-[320px] bg-[#1A1A1A] border border-white/10 rounded-3xl shadow-2xl p-6 transition-all duration-300 z-[110]
+            ${currentStepData.position === 'center' || !targetFound ? 'relative' : ''}
           `}
-          style={currentStepData.position !== 'center' ? {
-            top: currentStepData.position === 'bottom' ? coords.top + coords.height + 24 : 
-                 currentStepData.position === 'left' || currentStepData.position === 'right' ? coords.top : undefined,
-            bottom: currentStepData.position === 'top' ? window.innerHeight - coords.top + 24 : undefined,
-            left: currentStepData.position === 'right' ? coords.left + coords.width + 24 : 
-                  currentStepData.position === 'left' ? coords.left - 344 : 
-                  currentStepData.position === 'bottom' || currentStepData.position === 'top' ? coords.left + (coords.width / 2) - 160 : coords.left
-          } : {}}
+          style={(() => {
+            if (currentStepData.position === 'center' || !targetFound) return {};
+            
+            const gap = 24;
+            const tooltipWidth = 320;
+            const tooltipHeight = 250; // Approximated
+            
+            let top = 0;
+            let left = 0;
+
+            if (currentStepData.position === 'right') {
+              top = coords.top;
+              left = coords.left + coords.width + gap;
+            } else if (currentStepData.position === 'left') {
+              top = coords.top;
+              left = coords.left - tooltipWidth - gap;
+            } else if (currentStepData.position === 'bottom') {
+              top = coords.top + coords.height + gap;
+              left = coords.left + (coords.width / 2) - (tooltipWidth / 2);
+            } else if (currentStepData.position === 'top') {
+              top = coords.top - tooltipHeight - gap;
+              left = coords.left + (coords.width / 2) - (tooltipWidth / 2);
+            }
+
+            // Clamping
+            top = Math.max(20, Math.min(top, window.innerHeight - tooltipHeight - 20));
+            left = Math.max(20, Math.min(left, window.innerWidth - tooltipWidth - 20));
+
+            return { top, left };
+          })()}
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">

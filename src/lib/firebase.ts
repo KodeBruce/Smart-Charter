@@ -66,3 +66,23 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
+
+export function formatFirebaseDate(date: any): string {
+  if (!date) return 'N/A';
+  if (date.toDate && typeof date.toDate === 'function') {
+    return date.toDate().toLocaleDateString();
+  }
+  if (date.seconds !== undefined) {
+    return new Date(date.seconds * 1000).toLocaleDateString();
+  }
+  const d = new Date(date);
+  return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString();
+}
+
+export function toStandardDate(date: any): Date | null {
+  if (!date) return null;
+  if (date.toDate && typeof date.toDate === 'function') return date.toDate();
+  if (date.seconds !== undefined) return new Date(date.seconds * 1000);
+  const d = new Date(date);
+  return isNaN(d.getTime()) ? null : d;
+}
