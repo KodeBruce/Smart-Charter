@@ -1223,18 +1223,18 @@ export default function ProjectWorkspace() {
                     )}
                   </div>
 
-                  <div className="bg-[#0D0D0D] text-white rounded-[32px] p-8 relative overflow-hidden flex flex-col justify-between">
+                  <div className="bg-surface-container text-on-surface rounded-[32px] p-8 relative overflow-hidden flex flex-col justify-between">
                     <div className="relative z-10">
                       <Shield className="h-8 w-8 text-secondary mb-6" />
                       <h4 className="text-2xl font-bold tracking-tighter mb-2">Finalize & Send</h4>
-                      <p className="text-xs text-white/40 leading-relaxed max-w-[280px]">
+                      <p className="text-xs text-on-surface/40 leading-relaxed max-w-[280px]">
                         Review all documents, confirm signers, and trigger the execution workflow once terms are finalized.
                       </p>
                     </div>
                     <button 
                       onClick={handleRunSignatureLoop}
                       disabled={isLooping || !project?.signers?.length}
-                      className="relative z-10 w-full py-4 bg-white text-black rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                      className="relative z-10 w-full py-4 bg-primary text-surface rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                     >
                       {isLooping ? 'Initializing...' : 'Run Signature Loop'}
                     </button>
@@ -1337,12 +1337,12 @@ export default function ProjectWorkspace() {
           <AnimatePresence>
             {isSignModalOpen && editingDoc && (
               <>
-                <motion.div 
+                  <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setIsSignModalOpen(false)}
-                  className="fixed inset-0 bg-[#0D0D0D]/90 backdrop-blur-md z-[120]"
+                  className="fixed inset-0 bg-surface/90 backdrop-blur-md z-[120]"
                 />
                 <motion.div 
                   initial={{ scale: 0.9, opacity: 0 }}

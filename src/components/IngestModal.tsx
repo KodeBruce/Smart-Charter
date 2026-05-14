@@ -89,21 +89,21 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[#0D0D0D] border border-white/10 rounded-[32px] p-8 z-[101] shadow-2xl overflow-hidden"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-surface border border-outline rounded-[32px] p-8 z-[101] shadow-2xl overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#E2FF6F] to-transparent opacity-50" />
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
             
             <div className="flex justify-between items-center mb-8">
               <div>
-                <p className="text-[8px] font-bold uppercase tracking-[0.4em] text-white/30 mb-1">Document Analysis</p>
-                <h3 className="text-xl font-bold text-white tracking-tight leading-none flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-[#E2FF6F]" />
+                <p className="text-[8px] font-bold uppercase tracking-[0.4em] text-on-surface/30 mb-1">Document Analysis</p>
+                <h3 className="text-xl font-bold text-primary tracking-tight leading-none flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-secondary" />
                   Upload Contract
                 </h3>
               </div>
               <button 
                 onClick={onClose}
-                className="p-2 rounded-xl text-white/20 hover:text-white hover:bg-white/5 transition-all"
+                className="p-2 rounded-xl text-on-surface/20 hover:text-primary hover:bg-surface-container transition-all"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -112,26 +112,26 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
             {isUploading ? (
               <div className="py-12 flex flex-col items-center gap-4">
                 <div className="relative">
-                  <Loader2 className="h-12 w-12 text-[#E2FF6F] animate-spin stroke-[1.5]" />
-                  <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-[#E2FF6F] animate-pulse" />
+                  <Loader2 className="h-12 w-12 text-primary animate-spin stroke-[1.5]" />
+                  <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-secondary animate-pulse" />
                 </div>
                 <div className="text-center">
-                  <p className="text-white text-xs font-bold uppercase tracking-widest mb-2 italic">Charter AI Processing</p>
-                  <p className="text-white/40 text-[10px] font-medium max-w-[200px]">Scanning clauses and identifying key legal points...</p>
+                  <p className="text-primary text-xs font-bold uppercase tracking-widest mb-2 italic">Charter AI Processing</p>
+                  <p className="text-on-surface/40 text-[10px] font-medium max-w-[200px]">Scanning clauses and identifying key legal points...</p>
                 </div>
               </div>
             ) : (
               <div className="space-y-6">
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-white/10 rounded-2xl p-10 flex flex-col items-center gap-4 hover:border-[#E2FF6F]/30 hover:bg-[#E2FF6F]/5 transition-all cursor-pointer group"
+                  className="border-2 border-dashed border-outline rounded-2xl p-10 flex flex-col items-center gap-4 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group"
                 >
-                  <div className="p-4 bg-white/5 rounded-2xl group-hover:bg-[#E2FF6F] group-hover:text-black transition-all">
+                  <div className="p-4 bg-surface-container rounded-2xl group-hover:bg-primary group-hover:text-surface transition-all">
                     <Upload className="h-6 w-6" />
                   </div>
                   <div className="text-center">
-                    <p className="text-white text-[11px] font-bold uppercase tracking-widest mb-1">Upload Document</p>
-                    <p className="text-white/30 text-[9px] font-medium uppercase tracking-[0.2em]">PDF, Word, or Text (Drag or Click)</p>
+                    <p className="text-primary text-[11px] font-bold uppercase tracking-widest mb-1">Upload Document</p>
+                    <p className="text-on-surface/30 text-[9px] font-medium uppercase tracking-[0.2em]">PDF, Word, or Text (Drag or Click)</p>
                   </div>
                   <input 
                     ref={fileInputRef}
@@ -151,12 +151,12 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                   </div>
                 )}
 
-                <div className="pt-4 border-t border-white/5 flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-white/20">
+                <div className="pt-4 border-t border-outline flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-on-surface/20">
                     <CheckCircle2 className="h-3 w-3" />
                     <span className="text-[7.5px] font-bold uppercase tracking-widest">Automated Clause Identification</span>
                   </div>
-                  <div className="flex items-center gap-2 text-white/20">
+                  <div className="flex items-center gap-2 text-on-surface/20">
                     <CheckCircle2 className="h-3 w-3" />
                     <span className="text-[7.5px] font-bold uppercase tracking-widest">Legal Review Validation</span>
                   </div>

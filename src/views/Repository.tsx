@@ -571,21 +571,21 @@ export default function Repository() {
 
         {/* Global Heuristics Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 pb-8">
-          <div className="bg-[#000000] text-white p-8 rounded-[32px] flex items-start gap-6 overflow-hidden relative shadow-2xl border border-white/5 group transition-all">
+          <div className="bg-primary text-surface p-8 rounded-[32px] flex items-start gap-6 overflow-hidden relative shadow-2xl border border-outline group transition-all">
             <div className="relative z-10 flex-1">
               <div className="flex items-center gap-3 mb-5">
-                <div className="p-2 bg-[#E2FF6F] rounded-lg shadow-lg shadow-[#E2FF6F]/20">
-                  <Sparkles className="h-4 w-4 text-black" />
+                <div className="p-2 bg-secondary rounded-lg shadow-lg shadow-secondary/20">
+                  <Sparkles className="h-4 w-4 text-secondary-content" />
                 </div>
                 <h3 className="text-lg font-bold tracking-tighter">Portfolio Analysis</h3>
               </div>
-              <p className="text-xs text-white/50 leading-relaxed font-medium min-h-[40px]">
+              <p className="text-xs text-surface/50 leading-relaxed font-medium min-h-[40px]">
                 {auditResult || "Analysis suggests 14% of NDAs are reaching their renewal dates. Prepare bulk renewals with updated legal analysis."}
               </p>
               <button 
                 onClick={handleRunAudit}
                 disabled={isAuditing}
-                className="mt-6 bg-white/5 hover:bg-white/10 transition-all text-white px-6 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border border-white/10 flex items-center gap-2 disabled:opacity-50"
+                className="mt-6 bg-surface/5 hover:bg-surface/10 transition-all text-surface px-6 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border border-surface/10 flex items-center gap-2 disabled:opacity-50"
               >
                 {isAuditing ? 'Auditing...' : 'Run Portfolio Audit'}
                 <ArrowUpRight className="h-3.5 w-3.5" />

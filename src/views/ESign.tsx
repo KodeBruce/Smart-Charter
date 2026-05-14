@@ -204,9 +204,9 @@ export default function ESign() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#080808] text-white">
+    <div className="flex flex-col h-full bg-surface text-on-surface">
       {/* Header */}
-      <header className="px-8 py-6 border-b border-white/5 flex justify-between items-end">
+      <header className="px-8 py-6 border-b border-outline flex justify-between items-end">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <div className="p-2 bg-primary/10 rounded-lg">
@@ -214,7 +214,7 @@ export default function ESign() {
             </div>
             <h1 className="text-2xl font-bold tracking-tight">E-Signature Hub</h1>
           </div>
-          <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/30">Secure digital signing workflow</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] font-black text-on-surface/30">Secure digital signing workflow</p>
         </div>
         
         <button 
@@ -228,14 +228,14 @@ export default function ESign() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Document List */}
-        <div className="w-[400px] border-r border-white/5 bg-[#0D0D0D] flex flex-col">
-          <div className="p-6 border-b border-white/5">
+        <div className="w-[400px] border-r border-outline bg-surface flex flex-col">
+          <div className="p-6 border-b border-outline">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-on-surface/20" />
               <input 
                 type="text" 
                 placeholder="Search signing requests..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-[10px] font-bold outline-none focus:border-primary transition-all"
+                className="w-full bg-on-surface/5 border border-outline rounded-xl pl-9 pr-4 py-2 text-[10px] font-bold outline-none focus:border-primary transition-all"
               />
             </div>
           </div>
@@ -244,13 +244,13 @@ export default function ESign() {
             {isLoading ? (
               <div className="flex flex-col items-center justify-center h-48 gap-4">
                 <div className="w-6 h-6 border-2 border-primary border-t-transparent animate-spin rounded-full" />
-                <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Loading vault...</p>
+                <p className="text-[10px] font-bold text-on-surface/20 uppercase tracking-widest">Loading vault...</p>
               </div>
             ) : documents.length === 0 ? (
-              <div className="p-8 text-center bg-white/[0.02] rounded-[32px] border border-dashed border-white/10">
-                <Layout className="h-8 w-8 text-white/10 mx-auto mb-4" />
-                <p className="text-xs font-bold text-white/40 mb-2">No documents yet</p>
-                <p className="text-[10px] text-white/20 uppercase tracking-widest leading-relaxed">Start your first signing workflow</p>
+              <div className="p-8 text-center bg-on-surface/[0.02] rounded-[32px] border border-dashed border-outline">
+                <Layout className="h-8 w-8 text-on-surface/10 mx-auto mb-4" />
+                <p className="text-xs font-bold text-on-surface/40 mb-2">No documents yet</p>
+                <p className="text-[10px] text-on-surface/20 uppercase tracking-widest leading-relaxed">Start your first signing workflow</p>
               </div>
             ) : (
               documents.map(docItem => (
@@ -260,23 +260,23 @@ export default function ESign() {
                   className={`w-full p-4 rounded-2xl border transition-all text-left group ${
                     selectedDoc?.id === docItem.id 
                       ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5' 
-                      : 'bg-white/[0.02] border-white/5 hover:border-white/20'
+                      : 'bg-on-surface/[0.02] border-outline hover:border-on-surface/20'
                   }`}
                 >
                   <div className="flex justify-between items-start mb-3">
-                    <div className={`p-2 rounded-lg ${selectedDoc?.id === docItem.id ? 'bg-primary text-white' : 'bg-white/5 text-white/40 group-hover:text-white group-hover:bg-white/10'}`}>
+                    <div className={`p-2 rounded-lg ${selectedDoc?.id === docItem.id ? 'bg-primary text-white' : 'bg-on-surface/5 text-on-surface/40 group-hover:text-on-surface group-hover:bg-on-surface/10'}`}>
                       <FileText className="h-3.5 w-3.5" />
                     </div>
                     <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.1em] ${
                       docItem.status === 'Completed' ? 'bg-secondary/20 text-secondary' :
-                      docItem.status === 'Draft' ? 'bg-white/10 text-white/40' :
+                      docItem.status === 'Draft' ? 'bg-on-surface/10 text-on-surface/40' :
                       'bg-orange-500/20 text-orange-400'
                     }`}>
                       {docItem.status}
                     </div>
                   </div>
                   <h3 className="text-xs font-bold mb-1 group-hover:text-primary transition-colors">{docItem.name}</h3>
-                  <div className="flex items-center gap-3 text-[9px] font-bold text-white/20 uppercase tracking-wider">
+                  <div className="flex items-center gap-3 text-[9px] font-bold text-on-surface/20 uppercase tracking-wider">
                     <div className="flex items-center gap-1">
                       <Users className="h-3 w-3" />
                       {docItem.signers.filter(s => s.signed).length}/{docItem.signers.length} Signed
@@ -294,16 +294,16 @@ export default function ESign() {
         </div>
 
         {/* Workspace */}
-        <div className="flex-1 bg-black relative flex flex-col">
+        <div className="flex-1 bg-surface-container relative flex flex-col">
           {selectedDoc ? (
             <div className="h-full flex flex-col">
-              <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#080808]">
+              <div className="p-6 border-b border-outline flex justify-between items-center bg-surface">
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-bold tracking-tight">{selectedDoc.name}</h2>
+                    <h2 className="text-lg font-bold tracking-tight text-on-surface">{selectedDoc.name}</h2>
                     <span className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest ${
                       selectedDoc.status === 'Completed' ? 'bg-secondary/20 text-secondary' :
-                      selectedDoc.status === 'Draft' ? 'bg-white/10 text-white/40' :
+                      selectedDoc.status === 'Draft' ? 'bg-on-surface/10 text-on-surface/40' :
                       'bg-orange-500/20 text-orange-400'
                     }`}>
                       {selectedDoc.status}
@@ -317,7 +317,7 @@ export default function ESign() {
                         className={`px-2 py-0.5 rounded border text-[8px] font-bold uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer ${
                           activeSignerIndex === i && isPreparing ? 'ring-1 ring-primary border-primary' : ''
                         } ${
-                          s.signed ? 'bg-secondary/10 border-secondary/20 text-secondary' : 'bg-white/5 border-white/10 text-white/40'
+                          s.signed ? 'bg-secondary/10 border-secondary/20 text-secondary' : 'bg-on-surface/5 border-outline text-on-surface/40'
                         }`}
                       >
                         {s.signed && <Check className="h-2 w-2" />}
@@ -330,7 +330,7 @@ export default function ESign() {
                   {selectedDoc.status === 'Draft' && !isPreparing && (
                     <button 
                       onClick={() => setIsPreparing(true)}
-                      className="px-6 py-2 border border-white/10 hover:bg-white/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"
+                      className="px-6 py-2 border border-outline hover:bg-on-surface/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all text-on-surface"
                     >
                       Prepare Fields
                     </button>
@@ -338,7 +338,7 @@ export default function ESign() {
                   {isPreparing && (
                     <button 
                       onClick={handleStartWorkflow}
-                      className="px-6 py-2 bg-primary text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 transition-all"
+                      className="px-6 py-2 bg-primary text-surface rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 transition-all"
                     >
                       Send for Signing
                     </button>
@@ -351,13 +351,13 @@ export default function ESign() {
                       Sign Document
                     </button>
                   )}
-                  <button className="p-2 hover:bg-white/5 text-white/30 rounded-lg transition-all">
+                  <button className="p-2 hover:bg-on-surface/5 text-on-surface/30 rounded-lg transition-all">
                     <Download className="h-4 w-4" />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 p-12 overflow-y-auto relative bg-surface-container/20 flex flex-col items-center">
+              <div className="flex-1 p-12 overflow-y-auto relative bg-surface-container flex flex-col items-center">
                 {isPreparing && (
                   <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-2xl flex items-center gap-4 text-primary max-w-[800px] w-full">
                     <Sparkles className="h-5 w-5" />
@@ -441,11 +441,11 @@ export default function ESign() {
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center p-12 text-center">
-              <div className="w-20 h-20 bg-white/[0.02] border border-white/5 rounded-full flex items-center justify-center mb-6">
-                <PenTool className="h-8 w-8 text-white/10" />
+              <div className="w-20 h-20 bg-on-surface/[0.02] border border-outline rounded-full flex items-center justify-center mb-6">
+                <PenTool className="h-8 w-8 text-on-surface/10" />
               </div>
-              <h2 className="text-xl font-bold tracking-tight mb-2">No Document Selected</h2>
-              <p className="text-[10px] text-white/20 uppercase tracking-[0.2em] font-medium max-w-[240px] leading-relaxed">
+              <h2 className="text-xl font-bold tracking-tight mb-2 text-on-surface">No Document Selected</h2>
+              <p className="text-[10px] text-on-surface/20 uppercase tracking-[0.2em] font-medium max-w-[240px] leading-relaxed">
                 Select a signing request from the sidebar or upload a new document to start.
               </p>
             </div>
@@ -461,16 +461,16 @@ export default function ESign() {
                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="bg-[#0D0D0D] border border-white/10 rounded-[32px] p-8 w-full max-w-lg shadow-2xl"
+               className="bg-surface border border-outline rounded-[32px] p-8 w-full max-w-lg shadow-2xl"
             >
               <div className="flex justify-between items-start mb-8">
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-white mb-1">New Signing Request</h2>
-                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Upload and invite stakeholders</p>
+                  <h2 className="text-xl font-bold tracking-tight text-on-surface mb-1">New Signing Request</h2>
+                  <p className="text-[10px] font-bold text-on-surface/30 uppercase tracking-widest">Upload and invite stakeholders</p>
                 </div>
                 <button 
                   onClick={() => setIsUploadModalOpen(false)}
-                  className="p-2 hover:bg-white/5 rounded-full text-white/20 hover:text-white transition-all"
+                  className="p-2 hover:bg-on-surface/5 rounded-full text-on-surface/20 hover:text-on-surface transition-all"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -478,7 +478,7 @@ export default function ESign() {
 
                 <div className="p-4 space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-1">Document Content</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface/40 ml-1">Document Content</label>
                     <div 
                       onClick={() => fileInputRef.current?.click()}
                       className={`p-10 bg-primary/5 border border-dashed rounded-[32px] text-center cursor-pointer transition-all hover:bg-primary/10 ${newDoc.file ? 'border-primary' : 'border-primary/20'}`}
@@ -503,20 +503,20 @@ export default function ESign() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-1">Document Title</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface/40 ml-1">Document Title</label>
                     <input 
                       type="text" 
                       value={newDoc.name}
                       onChange={(e) => setNewDoc({ ...newDoc, name: e.target.value })}
                       placeholder="e.g. Master Services Agreement"
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-primary transition-all text-white"
+                      className="w-full bg-on-surface/5 border border-outline rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-primary transition-all text-on-surface"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-4 px-4 pb-4">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-1">Invited Stakeholders</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface/40 ml-1">Invited Stakeholders</label>
                     <button 
                       onClick={() => setNewDoc({ ...newDoc, signers: [...newDoc.signers, ''] })}
                       className="text-[9px] font-bold text-primary uppercase tracking-widest flex items-center gap-1 hover:brightness-110"
@@ -530,7 +530,7 @@ export default function ESign() {
                     {newDoc.signers.map((signer, index) => (
                       <div key={`new-signer-${index}`} className="flex gap-2">
                         <div className="flex-1 relative">
-                          <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
+                          <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-on-surface/20" />
                           <input 
                             type="email" 
                             value={signer}
@@ -540,7 +540,7 @@ export default function ESign() {
                               setNewDoc({ ...newDoc, signers: updated });
                             }}
                             placeholder="signer@company.com"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-[11px] font-bold outline-none focus:border-primary transition-all text-white"
+                            className="w-full bg-on-surface/5 border border-outline rounded-xl pl-11 pr-4 py-3 text-[11px] font-bold outline-none focus:border-primary transition-all text-on-surface"
                           />
                         </div>
                         {newDoc.signers.length > 1 && (
@@ -549,7 +549,7 @@ export default function ESign() {
                               const updated = newDoc.signers.filter((_, i) => i !== index);
                               setNewDoc({ ...newDoc, signers: updated });
                             }}
-                            className="p-3 bg-white/5 hover:bg-error/10 text-white/20 hover:text-error rounded-xl transition-all"
+                            className="p-3 bg-on-surface/5 hover:bg-error/10 text-on-surface/20 hover:text-error rounded-xl transition-all"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -559,20 +559,12 @@ export default function ESign() {
                   </div>
                 </div>
 
-                <div className="p-6 bg-primary/5 border border-dashed border-primary/20 rounded-[24px] text-center">
-                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Upload className="h-5 w-5 text-primary" />
-                   </div>
-                   <p className="text-[11px] font-bold text-primary tracking-tight mb-1">Click or drag PDF here</p>
-                   <p className="text-[9px] font-medium text-primary/40 uppercase tracking-widest">Max file size: 10MB</p>
-                </div>
-
                 <button 
                   onClick={handleCreateDocument}
                   disabled={!newDoc.name || !newDoc.file || newDoc.signers.every(s => s.trim() === '') || isScanning}
-                  className="w-full py-4 bg-primary text-white rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 mt-4 flex items-center justify-center gap-3"
+                  className="w-full py-4 bg-primary text-surface rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 mt-4 flex items-center justify-center gap-3"
                 >
-                  {isScanning && <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin rounded-full" />}
+                  {isScanning && <div className="w-4 h-4 border-2 border-surface border-t-transparent animate-spin rounded-full" />}
                   {isScanning ? 'Mapping Intelligent Fields...' : 'Create & Prepare Workflow'}
                 </button>
             </motion.div>
@@ -588,16 +580,16 @@ export default function ESign() {
                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="bg-[#111111] border border-white/10 rounded-[32px] p-8 w-full max-w-lg shadow-2xl"
+               className="bg-surface border border-outline rounded-[32px] p-8 w-full max-w-lg shadow-2xl"
             >
               <div className="flex justify-between items-start mb-8">
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-white mb-1">Affix Signature</h2>
-                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Draw or upload your signature</p>
+                  <h2 className="text-xl font-bold tracking-tight text-on-surface mb-1">Affix Signature</h2>
+                  <p className="text-[10px] font-bold text-on-surface/30 uppercase tracking-widest">Draw or upload your signature</p>
                 </div>
                 <button 
                   onClick={() => setIsSigning(false)}
-                  className="p-2 hover:bg-white/5 rounded-full text-white/20 hover:text-white transition-all"
+                  className="p-2 hover:bg-on-surface/5 rounded-full text-on-surface/20 hover:text-on-surface transition-all"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -625,18 +617,18 @@ export default function ESign() {
                    </div>
                  </div>
 
-                 <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/10">
+                 <div className="flex items-center gap-3 p-4 bg-on-surface/5 rounded-2xl border border-outline">
                     <CheckCircle2 className="h-5 w-5 text-secondary" />
                     <div>
-                       <p className="text-[11px] font-bold tracking-tight text-white/80">Electronic Record Consent</p>
-                       <p className="text-[9px] text-white/20 uppercase tracking-widest leading-none mt-1">I agree to use electronic records and signatures</p>
+                       <p className="text-[11px] font-bold tracking-tight text-on-surface/80">Electronic Record Consent</p>
+                       <p className="text-[9px] text-on-surface/20 uppercase tracking-widest leading-none mt-1">I agree to use electronic records and signatures</p>
                     </div>
                  </div>
 
                  <div className="grid grid-cols-2 gap-4">
                     <button 
                       onClick={() => setIsSigning(false)}
-                      className="py-4 bg-white/5 text-white/40 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-white/10 transition-all"
+                      className="py-4 bg-on-surface/5 text-on-surface/40 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-on-surface/10 transition-all"
                     >
                        Cancel
                     </button>

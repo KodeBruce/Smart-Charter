@@ -353,27 +353,27 @@ export default function RiskPlaybook() {
         </section>
 
         {/* Global Action */}
-        <section className="p-8 bg-[#0D0D0D] rounded-[40px] text-white border border-white/5 relative overflow-hidden group">
+        <section className="p-8 bg-surface-container rounded-[40px] text-on-surface border border-outline relative overflow-hidden group">
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-4">
               <Zap className="h-4 w-4 text-secondary fill-secondary" />
-              <p className="text-[9px] font-extrabold uppercase tracking-[0.4em] text-white/50">Intelligence Engine</p>
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.4em] text-on-surface/50">Intelligence Engine</p>
             </div>
             <h4 className="text-2xl font-bold mb-3 tracking-tighter">Architect Custom Framework</h4>
-            <p className="text-xs text-white/40 max-w-[440px] leading-relaxed font-medium mb-8">
+            <p className="text-xs text-on-surface/40 max-w-[440px] leading-relaxed font-medium mb-8">
               Don't see a playbook that matches your specific transaction volume? Use the builder to define automated risk vectors, mandatory clauses, and signature workflows.
             </p>
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => setIsAiModalOpen(true)}
-                className="px-8 py-3 bg-white text-black text-[11px] font-extrabold uppercase tracking-widest rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10 flex items-center gap-2"
+                className="px-8 py-3 bg-primary text-surface text-[11px] font-extrabold uppercase tracking-widest rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/10 flex items-center gap-2"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Generate with AI
               </button>
               <button 
                 onClick={() => setIsManualModalOpen(true)}
-                className="px-8 py-3 bg-white/5 border border-white/10 text-white text-[11px] font-extrabold uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all font-bold"
+                className="px-8 py-3 bg-on-surface/5 border border-outline text-on-surface text-[11px] font-extrabold uppercase tracking-widest rounded-2xl hover:bg-on-surface/10 transition-all font-bold"
               >
                 Create Manually
               </button>
@@ -856,7 +856,7 @@ export default function RiskPlaybook() {
                     >
                       Edit Guide
                     </button>
-                    <button className="flex-1 py-3 bg-[#0D0D0D] text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-black/10">
+                    <button className="flex-1 py-3 bg-primary text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-primary/10">
                       Update All Docs
                     </button>
                   </>
