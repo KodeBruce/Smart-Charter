@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'email', 'name', 'role', 'createdAt']) &&
+             data.keys().size() == 5 &&
+             data.id == request.auth.uid &&
+             data.email == request.auth.token.email &&
+             data.role is string &&
+             data.createdAt == request.time;
+    }
+
+    function isValidProject(data) {
+      return data.name is string && data.name.size() <= 255 &&
+             data.ownerId is string &&
+             data.status in ['Active', 'Drafting', 'Review', 'Complete'] &&
+             data.category in ['Strategic', 'HR', 'Legal', 'Vendor'] &&
+             (data.get('members', []) is list) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidContract(data) {
+      return data.name is string && data.name.size() <= 255 &&
+             data.ownerId is string &&
+             (data.projectId == null || data.projectId is string) &&
+             (data.get('source', null) in ['Vault', 'Hub', 'Analysis Vault', 'Execution Hub', null]) &&
+             data.status in ['Analyzing', 'Review Required', 'Review Complete', 'Drafting', 'Generated', 'Signed'] &&
+             (data.get('auditLogs', []) is list) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    function isProjectOwnerOrMember(projectId) {
+      let project = get(/databases/$(database)/documents/projects/$(projectId)).data;
+      return project.ownerId == request.auth.uid || (project.get('members', null) != null && request.auth.token.email in project.members);
+    }
+
+    function isValidInsight(data, contractId) {
+      return data.keys().hasAll(['id', 'contractId', 'title', 'description', 'type', 'createdAt']) &&
+             data.contractId == contractId &&
+             data.type in ['recommendation', 'warning'] &&
+             data.createdAt == request.time;
+    }
+
+    function isValidActionItem(data, contractId) {
+      return data.keys().hasAll(['id', 'contractId', 'title', 'description', 'priority', 'status', 'createdAt']) &&
+             data.contractId == contractId &&
+             data.priority in ['CRITICAL', 'MEDIUM', 'LOW'] &&
+             data.status in ['pending', 'completed'] &&
+             data.createdAt == request.time;
+    }
+
+    // --- Path Routes ---
+
+    match /users/{userId} {
+      allow get: if isEmailVerified() && userId == request.auth.uid;
+      allow create: if isEmailVerified() && isValidUser(incoming());
+      allow update: if isEmailVerified() && userId == request.auth.uid && 
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name']) &&
+                       incoming().name is string && incoming().name.size() <= 100;
+    }
+
+    match /projects/{projectId} {
+      allow get: if isEmailVerified() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().get('members', []));
+      allow list: if isEmailVerified() && (resource.data.ownerId == request.auth.uid || resource.data.get('members', []) != null && request.auth.token.email in resource.data.get('members', []));
+      allow create: if isEmailVerified() && isValidProject(incoming()) && isValidId(projectId);
+      allow delete: if isEmailVerified() && existing().ownerId == request.auth.uid;
+      allow update: if isEmailVerified() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().get('members', [])) && isValidProject(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'status', 'category', 'lead', 'signers', 'members', 'updatedAt', 'count']) &&
+        incoming().updatedAt == request.time
+      );
+    }
+
+    match /contracts/{contractId} {
+      allow get: if isEmailVerified() && (existing().ownerId == request.auth.uid || (existing().get('projectId', null) != null && isProjectOwnerOrMember(existing().projectId)));
+      allow list: if isEmailVerified() && (resource.data.ownerId == request.auth.uid || (resource.data.get('projectId', null) != null && isProjectOwnerOrMember(resource.data.projectId)));
+      allow create: if isEmailVerified() && isValidContract(incoming()) && isValidId(contractId);
+      allow delete: if isEmailVerified() && (existing().ownerId == request.auth.uid || (existing().get('projectId', null) != null && isProjectOwnerOrMember(existing().projectId)));
+      allow update: if isEmailVerified() && 
+                       (existing().ownerId == request.auth.uid || (existing().get('projectId', null) != null && isProjectOwnerOrMember(existing().projectId))) &&
+                       isValidContract(incoming()) && (
+                         // Action: Meta Update
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'projectId', 'updatedAt', 'auditLogs', 'status']) && incoming().updatedAt == request.time) ||
+                         // Action: Analysis Result
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['riskLevel', 'overallRiskScore', 'status', 'content', 'updatedAt', 'auditLogs']) && incoming().updatedAt == request.time)
+                       );
+
+      match /insights/{insightId} {
+        allow read: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
+        allow write: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid && isValidInsight(incoming(), contractId);
+      }
+
+      match /actions/{actionId} {
+        allow read: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
+        allow create: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid && isValidActionItem(incoming(), contractId);
+        allow update: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
+                         incoming().status in ['pending', 'completed'];
+        allow delete: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
+      }
+    }
+  }
+}

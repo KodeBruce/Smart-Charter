@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "name", "role", "createdAt"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "A workspace for a set of contracts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "count": { "type": "number" },
+        "status": { "type": "string", "enum": ["Active", "Drafting", "Review", "Complete"] },
+        "lead": { "type": "string" },
+        "category": { "type": "string", "enum": ["Strategic", "HR", "Legal", "Vendor"] },
+        "members": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "signers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "email": { "type": "string" },
+              "status": { "type": "string", "enum": ["Pending", "Signed"] }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "ownerId", "status", "category", "createdAt", "updatedAt"]
+    },
+    "Contract": {
+      "title": "Contract",
+      "description": "Legal agreement document metadata and analysis",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "counterparty": { "type": "string" },
+        "value": { "type": "string" },
+        "expiryDate": { "type": "string" },
+        "riskLevel": { "type": "string", "enum": ["Low Risk", "Medium Risk", "High Risk"] },
+        "overallRiskScore": { "type": "number" },
+        "source": { "type": "string", "enum": ["Vault", "Hub"] },
+        "status": { "type": "string", "enum": ["Analyzing", "Review Required", "Review Complete", "Drafting", "Generated", "Signed"] },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "ownerId", "status", "createdAt", "updatedAt"]
+    },
+    "Insight": {
+      "title": "Insight",
+      "description": "AI generated insight for a contract",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "contractId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["recommendation", "warning"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "contractId", "title", "description", "type", "createdAt"]
+    },
+    "ActionItem": {
+      "title": "ActionItem",
+      "description": "Critical action item for a contract",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "contractId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "priority": { "type": "string", "enum": ["CRITICAL", "MEDIUM", "LOW"] },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "contractId", "title", "description", "priority", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Public and private user profile data"
+    },
+    "projects/{projectId}": {
+      "schema": "Project",
+      "description": "Workspaces containing groups of contracts"
+    },
+    "contracts/{contractId}": {
+      "schema": "Contract",
+      "description": "Main contract repository"
+    },
+    "contracts/{contractId}/insights/{insightId}": {
+      "schema": "Insight",
+      "description": "AI-generated insights specifically for this contract"
+    },
+    "contracts/{contractId}/actions/{actionId}": {
+      "schema": "ActionItem",
+      "description": "Action items specifically for this contract"
+    }
+  }
+}
