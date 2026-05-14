@@ -108,7 +108,9 @@ export default function ProjectWorkspace() {
   // New Workspace States
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [editedName, setEditedName] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
   const [editedCategory, setEditedCategory] = useState('');
+  const [editedLead, setEditedLead] = useState('');
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareEmail, setShareEmail] = useState('');
   const [activeWorkspaceMenu, setActiveWorkspaceMenu] = useState(false);
@@ -119,7 +121,9 @@ export default function ProjectWorkspace() {
     try {
       await setDoc(doc(db, 'projects', id), {
         name: editedName,
+        description: editedDescription,
         category: editedCategory,
+        lead: editedLead,
         updatedAt: serverTimestamp()
       }, { merge: true });
       setIsEditingHeader(false);
@@ -454,31 +458,89 @@ export default function ProjectWorkspace() {
           </button>
           <div className="h-6 w-px bg-outline" />
           {isEditingHeader ? (
-             <div className="flex items-center gap-2">
-                <input 
-                  autoFocus
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  className="text-sm font-bold text-primary bg-surface-container px-2 py-0.5 rounded outline-none border border-primary/20"
-                  onBlur={handleUpdateHeader}
-                  onKeyDown={(e) => e.key === 'Enter' && handleUpdateHeader()}
-                />
-                <select 
-                  value={editedCategory}
-                  onChange={(e) => setEditedCategory(e.target.value)}
-                  className="text-[9px] font-bold text-primary/60 uppercase tracking-widest bg-transparent outline-none cursor-pointer"
+             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-surface border border-outline rounded-[32px] p-8 w-full max-w-md shadow-2xl"
                 >
-                  <option value="Legal">Legal</option>
-                  <option value="HR">HR</option>
-                  <option value="Vendor">Vendor</option>
-                  <option value="Strategic">Strategic</option>
-                </select>
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h2 className="text-xl font-bold text-primary tracking-tight">Edit Workspace</h2>
+                      <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface/40">Update the details for your legal workflow</p>
+                    </div>
+                    <button onClick={() => setIsEditingHeader(false)} className="p-2 hover:bg-surface-container rounded-full transition-colors">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Workspace Name</label>
+                      <input 
+                        type="text"
+                        autoFocus
+                        value={editedName}
+                        onChange={(e) => setEditedName(e.target.value)}
+                        placeholder="e.g. Q4 Global Review"
+                        className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Description</label>
+                      <textarea 
+                        rows={3}
+                        value={editedDescription}
+                        onChange={(e) => setEditedDescription(e.target.value)}
+                        placeholder="Brief objective of this workspace..."
+                        className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Category</label>
+                        <select 
+                          value={editedCategory}
+                          onChange={(e) => setEditedCategory(e.target.value as any)}
+                          className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none appearance-none cursor-pointer"
+                        >
+                          <option value="Legal">Legal</option>
+                          <option value="HR">HR</option>
+                          <option value="Vendor">Vendor</option>
+                          <option value="Strategic">Strategic</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Workspace Lead</label>
+                        <input 
+                          type="text"
+                          value={editedLead}
+                          onChange={(e) => setEditedLead(e.target.value)}
+                          placeholder="Lead Name"
+                          className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={handleUpdateHeader}
+                      disabled={!editedName}
+                      className="w-full py-4 bg-primary text-white rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 mt-4"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </motion.div>
              </div>
           ) : (
             <div className="flex items-center gap-3">
               <div className="group cursor-pointer" onClick={() => {
                 setEditedName(project?.name || '');
+                setEditedDescription(project?.description || '');
                 setEditedCategory(project?.category || 'Legal');
+                setEditedLead(project?.lead || '');
                 setIsEditingHeader(true);
               }}>
                 <h2 className="text-sm font-bold text-primary tracking-tight group-hover:text-secondary transition-colors">{project?.name || 'Loading...'}</h2>
@@ -507,13 +569,17 @@ export default function ProjectWorkspace() {
                       >
                         <button 
                           onClick={() => {
+                            setEditedName(project?.name || '');
+                            setEditedDescription(project?.description || '');
+                            setEditedCategory(project?.category || 'Legal');
+                            setEditedLead(project?.lead || '');
                             setIsEditingHeader(true);
                             setActiveWorkspaceMenu(false);
                           }}
                           className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container text-primary transition-all text-left"
                         >
                           <Edit3 className="h-3.5 w-3.5 text-primary/40" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Rename Project</span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Edit Workspace</span>
                         </button>
                         <button 
                           onClick={() => {

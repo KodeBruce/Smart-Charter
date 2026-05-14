@@ -30,8 +30,8 @@ export default function Projects() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-  const [renamingProject, setRenamingProject] = useState<Project | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [newProject, setNewProject] = useState({
     name: '',
     description: '',
@@ -113,19 +113,22 @@ export default function Projects() {
     }
   };
 
-  const handleRenameProject = async () => {
-    if (!renamingProject || !newProject.name) return;
+  const handleUpdateProject = async () => {
+    if (!editingProject || !newProject.name) return;
     
     try {
-      await setDoc(doc(db, 'projects', renamingProject.id), {
+      await setDoc(doc(db, 'projects', editingProject.id), {
         name: newProject.name,
+        description: newProject.description,
+        category: newProject.category,
+        lead: newProject.lead,
         updatedAt: serverTimestamp()
       }, { merge: true });
-      setIsRenameModalOpen(false);
-      setRenamingProject(null);
+      setIsEditModalOpen(false);
+      setEditingProject(null);
       setNewProject({ name: '', description: '', category: 'Legal', lead: 'Sarah Jenkins' });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `projects/${renamingProject.id}`);
+      handleFirestoreError(error, OperationType.UPDATE, `projects/${editingProject.id}`);
     }
   };
 
@@ -169,8 +172,8 @@ export default function Projects() {
           </div>
         </header>
 
-        {/* Rename Modal */}
-        {isRenameModalOpen && (
+        {/* Edit Modal */}
+        {isEditModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
@@ -179,30 +182,66 @@ export default function Projects() {
             >
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-primary tracking-tight">Rename Workspace</h2>
-                  <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface/40">Update the name for your legal workflow</p>
+                  <h2 className="text-xl font-bold text-primary tracking-tight">Edit Workspace</h2>
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface/40">Update the details for your legal workflow</p>
                 </div>
-                <button onClick={() => setIsRenameModalOpen(false)} className="p-2 hover:bg-surface-container rounded-full transition-colors">
+                <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-surface-container rounded-full transition-colors">
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">New Workspace Name</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Workspace Name</label>
                   <input 
                     type="text"
                     autoFocus
                     value={newProject.name}
                     onChange={(e) => setNewProject({...newProject, name: e.target.value})}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRenameProject()}
                     placeholder="e.g. Q4 Global Review"
                     className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
                   />
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Description</label>
+                  <textarea 
+                    rows={3}
+                    value={newProject.description}
+                    onChange={(e) => setNewProject({...newProject, description: e.target.value})}
+                    placeholder="Brief objective of this workspace..."
+                    className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Category</label>
+                    <select 
+                      value={newProject.category}
+                      onChange={(e) => setNewProject({...newProject, category: e.target.value as any})}
+                      className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="Legal">Legal</option>
+                      <option value="HR">HR</option>
+                      <option value="Vendor">Vendor</option>
+                      <option value="Strategic">Strategic</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 ml-1">Workspace Lead</label>
+                    <input 
+                      type="text"
+                      value={newProject.lead}
+                      onChange={(e) => setNewProject({...newProject, lead: e.target.value})}
+                      placeholder="Lead Name"
+                      className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
+                    />
+                  </div>
+                </div>
+
                 <button 
-                  onClick={handleRenameProject}
+                  onClick={handleUpdateProject}
                   disabled={!newProject.name}
                   className="w-full py-4 bg-primary text-white rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 mt-4"
                 >
@@ -340,15 +379,20 @@ export default function Projects() {
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setRenamingProject(project);
-                                setNewProject({ ...newProject, name: project.name });
-                                setIsRenameModalOpen(true);
+                                setEditingProject(project);
+                                setNewProject({ 
+                                  name: project.name,
+                                  description: project.description,
+                                  category: project.category,
+                                  lead: project.lead
+                                });
+                                setIsEditModalOpen(true);
                                 setActiveMenuId(null);
                               }}
                               className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container text-primary transition-all text-left"
                             >
                               <Edit3 className="h-3.5 w-3.5 text-primary/40" />
-                              <span className="text-[10px] font-bold uppercase tracking-widest">Rename Workspace</span>
+                              <span className="text-[10px] font-bold uppercase tracking-widest">Edit Workspace</span>
                             </button>
                             <button 
                               onClick={(e) => handleDeleteProject(project.id, e)}
