@@ -29,8 +29,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
   const [error, setError] = useState<string | null>(null);
   const [selectedPlaybook, setSelectedPlaybook] = useState<Playbook | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -77,7 +75,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
     const contractId = `doc_${Date.now()}`;
 
     try {
-      // Phase 5 Enhancement: Immediate background tracking
       const initialData = {
         id: contractId,
         name: file.name,
@@ -90,7 +87,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
         riskLevel: 'Processing',
         overallRiskScore: 0,
         source: 'Vault',
-        status: 'Analyzing', // Using a legacy-approved status to avoid live rule rejection
+        status: 'Analyzing',
         content: '',
         analysis: '{}',
         playbookId: selectedPlaybook?.id || null,
@@ -102,7 +99,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
       
       await setDoc(doc(db, 'contracts', contractId), initialData);
 
-      // Now run the heavy AI analysis
       const analysis = await analyzeContract(file);
       
       const { rawText, ...restOfAnalysis } = analysis;
@@ -128,13 +124,9 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
         updatedAt: serverTimestamp()
       };
 
-      // Delete the temporary tracking record to bypass strict legacy `update` rule key checks
       await deleteDoc(doc(db, 'contracts', contractId));
-      
-      // Save the final result as a fresh `create` operation, which is more permissive
       await setDoc(doc(db, 'contracts', contractId), finalData);
 
-      // Add insights as sub-collection
       if (Array.isArray(analysis.missingProtections)) {
         for (const miss of analysis.missingProtections) {
           const insightId = `insight_${Math.random().toString(36).substr(2, 9)}`;
@@ -163,7 +155,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
       console.error(err);
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setIsUploading(false);
-      // Clean up the partial record if possible, or mark as failed
       if (contractId) {
         await setDoc(doc(db, 'contracts', contractId), { status: 'Failed', updatedAt: serverTimestamp() }, { merge: true });
       }
@@ -185,21 +176,21 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[#0D0D0D] border border-white/10 rounded-[32px] p-8 z-[101] shadow-2xl overflow-hidden"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-surface border border-outline rounded-[32px] p-8 z-[101] shadow-2xl overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#E2FF6F] to-transparent opacity-50" />
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
             
             <div className="flex justify-between items-center mb-8">
               <div>
-                <p className="text-[8px] font-bold uppercase tracking-[0.4em] text-white/30 mb-1">Document Analysis</p>
-                <h3 className="text-xl font-bold text-white tracking-tight leading-none flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-[#E2FF6F]" />
+                <p className="text-[8px] font-bold uppercase tracking-[0.4em] text-on-surface/30 mb-1">Document Analysis</p>
+                <h3 className="text-xl font-bold text-primary tracking-tight leading-none flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-secondary" />
                   Upload Contract
                 </h3>
               </div>
               <button 
                 onClick={onClose}
-                className="p-2 rounded-xl text-white/20 hover:text-white hover:bg-white/5 transition-all"
+                className="p-2 rounded-xl text-on-surface/20 hover:text-primary hover:bg-surface-container transition-all"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -207,7 +198,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
 
             {isUploading ? (
               <div className="py-12 flex flex-col items-center gap-10">
-                {/* Minimalist Continuous Loading Bar */}
                 <div className="w-full space-y-4">
                   <div className="flex justify-between items-end">
                     <p className="text-[10px] font-black text-[#E2FF6F] uppercase tracking-[0.3em]">Processing Ingestion</p>
@@ -270,7 +260,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
               </div>
             ) : (
               <div className="space-y-5">
-                {/* Playbook Selector — Phase 4 */}
                 <div>
                   <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Step 1 — Choose Analysis Mode</p>
                   <PlaybookSelector
@@ -280,7 +269,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                   />
                 </div>
 
-                {/* Upload Drop Zone */}
                 <div>
                   <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Step 2 — Upload Document</p>
                   <div
@@ -304,7 +292,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                   </div>
                 </div>
 
-
                 {error && (
                   <div className="p-4 bg-error/10 border border-error/20 rounded-xl flex items-center gap-3">
                     <AlertCircle className="h-4 w-4 text-error" />
@@ -314,12 +301,12 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                   </div>
                 )}
 
-                <div className="pt-4 border-t border-white/5 flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-white/20">
+                <div className="pt-4 border-t border-outline flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-on-surface/20">
                     <CheckCircle2 className="h-3 w-3" />
                     <span className="text-[7.5px] font-bold uppercase tracking-widest">Automated Clause Identification</span>
                   </div>
-                  <div className="flex items-center gap-2 text-white/20">
+                  <div className="flex items-center gap-2 text-on-surface/20">
                     <CheckCircle2 className="h-3 w-3" />
                     <span className="text-[7.5px] font-bold uppercase tracking-widest">Legal Review Validation</span>
                   </div>
