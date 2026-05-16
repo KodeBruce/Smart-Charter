@@ -2,19 +2,70 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# ⚖️ Smart Charter AI
+### The High-Fidelity Intelligence Platform for Modern Contract Management
 
-This contains everything you need to run your app locally.
+Smart Charter AI is a sophisticated, AI-native platform designed to transform the lifecycle of legal documents. By leveraging Google’s state-of-the-art **Gemini 1.5 Pro** and **Flash** models, it turns static PDFs and Word documents into dynamic, actionable intelligence.
 
-View your app in AI Studio: https://ai.studio/apps/7e972eb7-23ce-4669-bb81-eead085d665e
+---
 
-## Run Locally
+## 🚀 Key Features
 
-**Prerequisites:**  Node.js
+### 🔍 Intelligent Document Analysis
+*   **High-Fidelity Reconstruction**: Ingests documents and reconstructs them in professional Markdown, preserving structure and emphasis.
+*   **Automated Metadata Extraction**: Instantly identifies counterparties, contract values, expiry dates, and governing law.
+*   **Risk Scoring**: Quantifies document risk (0-100) based on clause analysis and international standards (UK, USA, RSA, EU).
 
+### 🛠️ Interactive AI Workbench
+*   **Contextual Chat (RAG)**: Ask questions about specific clauses and receive answers grounded solely in the document text.
+*   **Smart Starters**: AI-generated questions tailored to each document to guide initial legal review.
+*   **Clause-Level Insights**: Automatic breakdown of critical obligations with priority ratings and remediation suggestions.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 📁 Advanced Management
+*   **Unified Repository**: A central, searchable vault for all organizational contracts.
+*   **Project Workspaces**: Collaborative environments for grouped agreements and specific workflows.
+*   **Smart Comparison**: Side-by-side version comparison with AI-detected differences.
+
+### 🛡️ Compliance & Execution
+*   **Jurisdictional Sentinel**: A live regulatory feed that assesses the impact of real-world legal news on your contract portfolio.
+*   **AI-Suggested Signatures**: Automatically predicts signature and date placements to streamline execution.
+*   **Integrated E-Sign Hub**: A secure platform for digital signing and audit trail management.
+
+---
+
+## 🛠️ Technology Stack
+
+*   **Frontend**: React 19, Vite, Tailwind CSS, Motion (Animations)
+*   **Backend**: Node.js, Express, Multer
+*   **AI Intelligence**: 
+    *   Google Gemini 1.5 Pro & Flash
+    *   Nvidia NIM (Fallback Strategy)
+    *   OfficeParser (Document Extraction)
+*   **Infrastructure**: Firebase (Auth, Firestore, Storage)
+
+---
+
+## 💻 Local Setup
+
+1.  **Clone the Repository**
+2.  **Install Dependencies**
+    ```bash
+    npm install
+    ```
+3.  **Environment Configuration**
+    Create a `.env.local` file and add your keys:
+    ```env
+    GEMINI_API_KEY=your_gemini_key
+    NVIDIA_API_KEY=your_nvidia_key (optional fallback)
+    VITE_FIREBASE_API_KEY=...
+    VITE_FIREBASE_PROJECT_ID=...
+    ```
+4.  **Run Development Server**
+    ```bash
+    npm run dev
+    ```
+
+---
+
+## 🔒 Security & Reliability
+Smart Charter AI is built with a "Privacy First" approach. Document text is processed in-memory and never persisted unless explicitly saved to your secure Firebase vault. The platform includes a robust multi-model fallback system to ensure 100% uptime even during high-traffic periods.

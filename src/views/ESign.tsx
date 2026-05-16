@@ -307,6 +307,7 @@ export default function ESign() {
       title: 'Delete Document',
       message: 'Are you sure you want to delete this document? This action cannot be undone.',
       isDestructive: true,
+      confirmLabel: 'Delete Document',
       onConfirm: async () => {
         try {
           if (selectedDoc.fileUrl) {
