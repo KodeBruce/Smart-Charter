@@ -13,13 +13,14 @@ import RiskPlaybook from './views/RiskPlaybook';
 import CompareContracts from './views/CompareContracts';
 import Projects from './views/Projects';
 import ProjectWorkspace from './views/ProjectWorkspace';
-import ESign from './views/ESign';
+import StrategicHub from './views/StrategicHub';
 import Settings from './views/Settings';
 import Login from './views/Login';
 import { useFirebase } from './lib/FirebaseProvider';
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { IngestProvider } from './contexts/IngestContext';
+import { VoiceProvider } from './contexts/VoiceContext';
 
 export default function App() {
   const { user, loading } = useFirebase();
@@ -51,20 +52,22 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <IngestProvider>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/repository" element={<Repository />} />
-              <Route path="/contract/:id" element={<ContractDetail />} />
-              <Route path="/compare" element={<CompareContracts />} />
-              <Route path="/esign" element={<ESign />} />
-              <Route path="/risk" element={<RiskPlaybook />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/project/:id" element={<ProjectWorkspace />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
+          <VoiceProvider>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/repository" element={<Repository />} />
+                <Route path="/contract/:id" element={<ContractDetail />} />
+                <Route path="/compare" element={<CompareContracts />} />
+                <Route path="/strategic-hub" element={<StrategicHub />} />
+                <Route path="/risk" element={<RiskPlaybook />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/project/:id" element={<ProjectWorkspace />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </VoiceProvider>
         </IngestProvider>
       </BrowserRouter>
     </ThemeProvider>

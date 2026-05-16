@@ -1,3 +1,16 @@
+import { auth } from '../lib/firebase';
+
+/**
+ * Returns HTTP headers including a Firebase ID token for server-side
+ * authentication. All calls to /api/gemini/* must include this header;
+ * the server rejects requests without a valid token.
+ */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('You must be signed in to use AI features.');
+  const token = await user.getIdToken();
+  return { Authorization: `Bearer ${token}` };
+}
 
 export interface ContractAnalysis {
   name: string;
@@ -14,6 +27,7 @@ export interface ContractAnalysis {
     implications?: string;
     risk?: string;
     citation?: string;
+    mitigatedAt?: string;
   }[];
   directive: string;
   jurisdiction: string;
@@ -36,11 +50,16 @@ export async function analyzeContract(file: File): Promise<ContractAnalysis> {
 
   const response = await fetch('/api/gemini/analyze', {
     method: 'POST',
+    headers: await getAuthHeaders(),
     body: formData
   });
 
   if (!response.ok) {
-    throw new Error('Failed to analyze contract via secure backend');
+    const errText = await response.text();
+    console.error("Analyze error:", response.status, errText);
+    let parsed: any = {};
+    try { parsed = JSON.parse(errText); } catch {}
+    throw new Error(`Server error ${response.status}: ${parsed.error || errText}`);
   }
 
   const analysis = await response.json();
@@ -50,7 +69,7 @@ export async function analyzeContract(file: File): Promise<ContractAnalysis> {
 export async function semanticSearch(query: string, context: string): Promise<string> {
   const response = await fetch('/api/gemini/search', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
     body: JSON.stringify({ query, context })
   });
 
@@ -75,11 +94,16 @@ export async function extractHumanReadableText(file: File): Promise<string> {
 
   const response = await fetch('/api/gemini/extract-text', {
     method: 'POST',
+    headers: await getAuthHeaders(),
     body: formData
   });
 
   if (!response.ok) {
-    throw new Error('Failed to extract text via secure backend');
+    const errText = await response.text();
+    console.error("Extract text error:", response.status, errText);
+    let parsed: any = {};
+    try { parsed = JSON.parse(errText); } catch {}
+    throw new Error(`Server error ${response.status}: ${parsed.error || errText}`);
   }
 
   const data = await response.json();
@@ -92,11 +116,16 @@ export async function suggestESignFields(file: File): Promise<SuggestedESignFiel
 
   const response = await fetch('/api/gemini/suggest-esign', {
     method: 'POST',
+    headers: await getAuthHeaders(),
     body: formData
   });
 
   if (!response.ok) {
-    throw new Error('Failed to suggest fields via secure backend');
+    const errText = await response.text();
+    console.error("Suggest fields error:", response.status, errText);
+    let parsed: any = {};
+    try { parsed = JSON.parse(errText); } catch {}
+    throw new Error(`Server error ${response.status}: ${parsed.error || errText}`);
   }
 
   return response.json();
@@ -105,10 +134,14 @@ export async function suggestESignFields(file: File): Promise<SuggestedESignFiel
 export async function generateText(prompt: string, systemInstruction?: string): Promise<string> {
   const response = await fetch('/api/gemini/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
     body: JSON.stringify({ prompt, systemInstruction })
   });
-  if (!response.ok) throw new Error('Generation failed');
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Generate API Error:", response.status, errorText);
+    throw new Error(`Generation failed: ${errorText}`);
+  }
   const data = await response.json();
   return data.text;
 }
@@ -116,7 +149,7 @@ export async function generateText(prompt: string, systemInstruction?: string): 
 export async function generateJson(prompt: string, schema: any, systemInstruction?: string): Promise<any> {
   const response = await fetch('/api/gemini/generate-json', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
     body: JSON.stringify({ prompt, schema, systemInstruction })
   });
   if (!response.ok) throw new Error('JSON Generation failed');

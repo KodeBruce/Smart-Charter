@@ -1,72 +1,95 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap'); 
 
-@theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Outfit", serif;
+@import "tailwindcss";  
 
-  --color-primary: var(--primary);
-  --color-secondary: var(--secondary);
-  --color-surface: var(--surface);
-  --color-on-surface: var(--on-surface);
-  --color-on-surface-variant: var(--on-surface-variant);
-  --color-outline: var(--outline);
-  --color-outline-variant: var(--outline-variant);
-  --color-secondary-content: var(--secondary-content);
-  --color-error: var(--error);
-  --color-warning: var(--warning);
-  --color-success: var(--success);
-  --color-surface-container: var(--surface-container);
-  --color-surface-container-low: var(--surface-container-low);
-  --color-surface-container-high: var(--surface-container-high);
+@theme {   
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;   
+  --font-serif: "Outfit", serif;    
+  --color-primary: var(--primary);   
+  --color-on-primary: var(--on-primary);   
+  --color-secondary: var(--secondary);   
+  --color-surface: var(--surface);   
+  --color-on-surface: var(--on-surface);   
+  --color-on-surface-variant: var(--on-surface-variant);   
+  --color-outline: var(--outline);   
+  --color-outline-variant: var(--outline-variant);   
+  --color-secondary-content: var(--secondary-content);   
+  --color-error: var(--error);   
+  --color-warning: var(--warning);   
+  --color-success: var(--success);   
+  --color-surface-container: var(--surface-container);   
+  --color-surface-container-low: var(--surface-container-low);   
+  --color-surface-container-high: var(--surface-container-high); 
+}  
+
+@layer base {   
+  :root {     
+    --primary: #1A1A1A;     
+    --on-primary: #FFFFFF;     
+    --secondary: #E2FF6F;     
+    --secondary-content: #657d00;     
+    --surface: #F8F9FA;     
+    --on-surface: #111827;     
+    --on-surface-variant: #374151;     
+    --outline: #E5E7EB;     
+    --outline-variant: #D1D5DB;     
+    --error: #DC2626;     
+    --warning: #D97706;     
+    --success: #059669;     
+    --surface-container-low: #F9FAFB;     
+    --surface-container: #F3F4F6;     
+    --surface-container-high: #E5E7EB;   
+
+    --mesh-gradient: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                     radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                     radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+  }    
+  
+  .dark {     
+    --primary: #FFFFFF;     
+    --on-primary: #0A0A0A;     
+    --secondary: #E2FF6F;     
+    --secondary-content: #E2FF6F;     
+    --surface: #0A0A0A;     
+    --on-surface: #F2F2F2;     
+    --on-surface-variant: #A0A0A0;     
+    --outline: #1A1A1A;     
+    --outline-variant: #262626;     
+    --error: #F87171;     
+    --warning: #FBBF24;     
+    --success: #34D399;     
+    --surface-container-low: #0F0F0F;     
+    --surface-container: #141414;     
+    --surface-container-high: #1A1A1A;   
+
+    --mesh-gradient: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                     radial-gradient(at 50% 0%, hsla(225,39%,10%,1) 0, transparent 50%), 
+                     radial-gradient(at 100% 0%, hsla(339,49%,10%,1) 0, transparent 50%);
+  }    
+  
+  body {     
+    @apply bg-surface text-on-surface font-sans transition-colors duration-300 antialiased;   
+  } 
+}  
+
+@keyframes mesh {
+  0% { transform: scale(1) translate(0px, 0px); }
+  33% { transform: scale(1.1) translate(30px, -50px); }
+  66% { transform: scale(0.9) translate(-20px, 20px); }
+  100% { transform: scale(1) translate(0px, 0px); }
 }
 
-@layer base {
-  :root {
-    --primary: #1A1A1A;
-    --secondary: #E2FF6F;
-    --secondary-content: #657d00;
-    --surface: #F8F9FA;
-    --on-surface: #111827;
-    --on-surface-variant: #374151;
-    --outline: #E5E7EB;
-    --outline-variant: #D1D5DB;
-    --error: #DC2626;
-    --warning: #D97706;
-    --success: #059669;
-    --surface-container-low: #F9FAFB;
-    --surface-container: #F3F4F6;
-    --surface-container-high: #E5E7EB;
-  }
-
-  .dark {
-    --primary: #FFFFFF;
-    --secondary: #E2FF6F;
-    --secondary-content: #E2FF6F;
-    --surface: #0A0A0A;
-    --on-surface: #F2F2F2;
-    --on-surface-variant: #A0A0A0;
-    --outline: #1A1A1A;
-    --outline-variant: #262626;
-    --error: #F87171;
-    --warning: #FBBF24;
-    --success: #34D399;
-    --surface-container-low: #0F0F0F;
-    --surface-container: #141414;
-    --surface-container-high: #1A1A1A;
-  }
-
-  body {
-    @apply bg-surface text-on-surface font-sans transition-colors duration-300 antialiased;
-  }
+.animate-mesh {
+  animation: mesh 20s ease-in-out infinite alternate;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-outline rounded-full;
+.custom-scrollbar::-webkit-scrollbar {   
+  width: 5px; 
+} 
+.custom-scrollbar::-webkit-scrollbar-track {   
+  @apply bg-transparent; 
+} 
+.custom-scrollbar::-webkit-scrollbar-thumb {   
+  @apply bg-outline rounded-full; 
 }

@@ -1,23 +1,23 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Files, ShieldAlert, Settings, Plus, HelpCircle, Moon, Sun, Search, FolderOpen, PenTool } from 'lucide-react';
+import { LayoutDashboard, FileText, Files, ShieldAlert, Settings, Plus, HelpCircle, Moon, Sun, Search, FolderOpen, Mic, MicOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useFirebase } from '../lib/FirebaseProvider';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIngest } from '../contexts/IngestContext';
+import { useVoice } from '../contexts/VoiceContext';
 
 export default function Sidebar() {
   const location = useLocation();
   const { user, logout } = useFirebase();
   const { theme, toggleTheme } = useTheme();
   const { openIngest } = useIngest();
+  const { isListening, toggleVoice } = useVoice();
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: FolderOpen, label: 'Projects', path: '/projects' },
-    { icon: FileText, label: 'Repository', path: '/repository' },
     { icon: Files, label: 'Document Comparison', path: '/compare' },
-    { icon: PenTool, label: 'E-Sign', path: '/esign' },
     { icon: ShieldAlert, label: 'Risk Playbook', path: '/risk' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
@@ -50,7 +50,6 @@ export default function Sidebar() {
                           item.label === 'Projects' ? 'walkthrough-projects' : 
                           item.label === 'Repository' ? 'walkthrough-repository' :
                           item.label === 'Document Comparison' ? 'walkthrough-compare' :
-                          item.label === 'E-Sign' ? 'walkthrough-esign' :
                           item.label === 'Risk Playbook' ? 'walkthrough-risk' :
                           item.label === 'Settings' ? 'walkthrough-settings' : undefined;
             return (
@@ -76,6 +75,19 @@ export default function Sidebar() {
 
         {/* Bottom Actions */}
         <div className="flex flex-col gap-4 mt-auto relative z-10 p-0.5">
+          <button 
+            onClick={toggleVoice}
+            className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all group relative ${
+              isListening ? 'text-[#E2FF6F] bg-white/10 shadow-[0_0_15px_rgba(226,255,111,0.2)]' : 'text-white/50 hover:text-[#E2FF6F]'
+            }`}
+            title="Toggle Voice Commands"
+          >
+            {isListening ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+            <div className="absolute left-14 px-3 py-1.5 bg-[#0D0D0D]/90 backdrop-blur text-white text-[9px] font-bold uppercase tracking-widest rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity border border-white/10">
+              {isListening ? 'Stop Listening' : 'Voice Commands'}
+            </div>
+          </button>
+
           <button 
             onClick={toggleTheme}
             className="h-9 w-9 rounded-xl text-white/50 hover:text-[#E2FF6F] flex items-center justify-center transition-all group relative"

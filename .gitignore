@@ -6,3 +6,13 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Firebase runtime config — contains live credentials, never commit
+firebase-applet-config.json
+
+# Document exclusions — never commit contracts or test data
+*.docx
+*.pdf
+*.doc
+test_contract.txt
+

@@ -1,11 +1,26 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer, collection, getDocs, onSnapshot, setDoc } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import { getStorage } from 'firebase/storage';
+
+// Firebase config is read from environment variables.
+// Set these in your .env.local file (see .env.example).
+// NEVER hardcode credentials or commit a config JSON file.
+const firebaseConfig = {
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, firestoreDatabaseId);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 // Connectivity Test
 async function testConnection() {
@@ -63,20 +78,33 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
+
+  // Log full diagnostics internally (server-side / DevTools only).
+  // NEVER surface the raw errInfo to the UI — it contains user PII.
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+
+  // Throw a sanitized, PII-free error for the UI to handle.
+  throw new Error(`Database operation '${operationType}' failed. Please try again.`);
 }
 
 export function formatFirebaseDate(date: any): string {
   if (!date) return 'N/A';
+  const options: Intl.DateTimeFormatOptions = { 
+    day: 'numeric', 
+    month: 'short', 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false
+  };
+
   if (date.toDate && typeof date.toDate === 'function') {
-    return date.toDate().toLocaleDateString();
+    return date.toDate().toLocaleString('en-GB', options).replace(',', '');
   }
   if (date.seconds !== undefined) {
-    return new Date(date.seconds * 1000).toLocaleDateString();
+    return new Date(date.seconds * 1000).toLocaleString('en-GB', options).replace(',', '');
   }
   const d = new Date(date);
-  return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString();
+  return isNaN(d.getTime()) ? 'N/A' : d.toLocaleString('en-GB', options).replace(',', '');
 }
 
 export function toStandardDate(date: any): Date | null {

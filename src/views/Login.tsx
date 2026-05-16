@@ -1,74 +1,127 @@
 import React from 'react';
 import { useFirebase } from '../lib/FirebaseProvider';
-import { Gavel, Lock, ShieldCheck, Sparkles } from 'lucide-react';
+import { Scale, ArrowRight, Shield, Zap, Search, Globe, Activity, Layers } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Login() {
   const { signInWithGoogle, authLoading } = useFirebase();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-surface p-6 relative overflow-hidden">
-      {/* Structural background elements */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-outline" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-secondary/10 -z-10 blur-[120px] rounded-full animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 -z-10 blur-[120px] rounded-full animate-pulse delay-1000" />
-      
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] relative overflow-hidden font-sans selection:bg-secondary/30 selection:text-secondary">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-[440px] flex flex-col items-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.5 }}
+        className="w-full max-w-[900px] flex flex-col md:flex-row items-stretch border border-white/5 rounded-[40px] overflow-hidden bg-[#0A0A0A] shadow-2xl relative"
       >
-        <div className="mb-14 flex flex-col items-center text-center">
-          <div className="h-14 w-14 bg-[#1A1A1A] rounded-2xl flex items-center justify-center mb-8 shadow-2xl relative group">
-            <Gavel className="h-7 w-7 text-[#E2FF6F]" />
-            <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-secondary animate-pulse" />
-            <div className="absolute -inset-1 bg-[#E2FF6F]/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
+        {/* Left Side: Detailed Intelligence Map (Line Style) */}
+        <div className="flex-1 p-12 border-r border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent hidden md:flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-10">
+              <div className="h-10 w-10 flex items-center justify-center">
+                <Scale className="h-7 w-7 text-secondary" />
+              </div>
+              <span className="text-white font-bold tracking-tight text-xl">Smart Charter</span>
+            </div>
+
+            <div className="space-y-10">
+              <div className="relative pl-8 border-l border-white/10">
+                <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-secondary shadow-[0_0_10px_#E2FF6F]" />
+                <h3 className="text-white text-sm font-bold uppercase tracking-widest mb-2">Negotiation Simulator</h3>
+                <p className="text-white/40 text-[13px] leading-relaxed max-w-[280px]">
+                  AI-driven redlining that suggests contract language corroborated by global legal standards and precedents.
+                </p>
+              </div>
+
+              <div className="relative pl-8 border-l border-white/10">
+                <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-white/20" />
+                <h3 className="text-white text-sm font-bold uppercase tracking-widest mb-2">Obligation Tracker</h3>
+                <p className="text-white/40 text-[13px] leading-relaxed max-w-[280px]">
+                  Neural extraction of all key dates, payment terms, and delivery milestones with automated sentinel alerts.
+                </p>
+              </div>
+
+              <div className="relative pl-8 border-l border-white/10">
+                <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-white/20" />
+                <h3 className="text-white text-sm font-bold uppercase tracking-widest mb-2">Compliance Radar</h3>
+                <p className="text-white/40 text-[13px] leading-relaxed max-w-[280px]">
+                  Real-time monitoring of jurisdictional shifts across EU, USA, UK, and RSA to ensure perpetual alignment.
+                </p>
+              </div>
+            </div>
           </div>
-          <h1 className="text-4xl font-bold text-primary tracking-tighter mb-3">Smart Charter</h1>
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-on-surface-variant/40">Neural Contract Intelligence</p>
+
+          <div className="flex items-center gap-6 opacity-30">
+            <div className="flex items-center gap-2">
+              <Globe className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-bold uppercase tracking-widest text-white">Multijurisdictional</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Activity className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-bold uppercase tracking-widest text-white">Live Sentinel</span>
+            </div>
+          </div>
         </div>
 
-        <div className="w-full bg-surface-container-low/50 backdrop-blur-xl border border-outline p-12 rounded-[42px] shadow-2xl shadow-black/[0.05] relative overflow-hidden transition-all duration-300">
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-3 w-3 text-secondary" />
-              <h2 className="text-sm font-bold text-primary tracking-tight">System Access Protocol</h2>
+        {/* Right Side: Authentication Node */}
+        <div className="w-full md:w-[400px] p-12 flex flex-col justify-center relative bg-[#0D0D0D]">
+          <div className="mb-10 md:hidden">
+             <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Smart Charter</h1>
+             <p className="text-white/40 text-[13px]">Strategic Intelligence Infrastructure</p>
+          </div>
+
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-white text-2xl font-bold tracking-tight mb-2">Initialize Node</h2>
+              <p className="text-white/40 text-sm leading-relaxed">
+                Connect your account to access your secure document vault and AI intelligence nodes.
+              </p>
             </div>
-            <p className="text-[11px] text-on-surface-variant/60 mb-10 font-bold uppercase tracking-widest">Authentication required for workspace entry.</p>
-            
+
             <button 
               onClick={() => signInWithGoogle()}
               disabled={authLoading}
-              className="w-full flex items-center justify-center gap-4 bg-primary text-white py-4 px-6 rounded-2xl text-[11px] font-extrabold uppercase tracking-[0.15em] hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/10 group overflow-hidden relative disabled:opacity-50 disabled:hover:scale-100"
+              className="w-full flex items-center justify-between gap-4 bg-white text-black h-16 px-8 rounded-2xl text-[15px] font-bold hover:bg-secondary active:scale-[0.98] transition-all disabled:opacity-50 group shadow-2xl shadow-white/5"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
               {authLoading ? (
-                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="mx-auto h-5 w-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
               ) : (
-                <img src="https://www.google.com/favicon.ico" alt="Google" className="h-4 w-4 saturate-0 brightness-200" />
+                <>
+                  <div className="flex items-center gap-4">
+                    <img src="https://www.google.com/favicon.ico" alt="Google" className="h-5 w-5" />
+                    <span>Authorize with Google</span>
+                  </div>
+                  <ArrowRight className="h-5 w-5 opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </>
               )}
-              {authLoading ? 'Authorizing...' : 'Continue with Google'}
             </button>
 
-            <div className="mt-12 pt-10 border-t border-outline flex flex-col items-center gap-6">
-              <div className="flex items-center gap-10 opacity-30">
-                <Lock className="h-4 w-4 text-on-surface" />
-                <div className="h-4 w-px bg-outline" />
-                <ShieldCheck className="h-4 w-4 text-on-surface" />
+            <div className="pt-8 border-t border-white/5 grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl border border-white/5 bg-white/[0.02]">
+                <Layers className="h-4 w-4 text-secondary mb-3" />
+                <p className="text-white text-[11px] font-bold uppercase tracking-widest mb-1">Architecture</p>
+                <p className="text-white/30 text-[10px]">Cloud-Native</p>
               </div>
-              <p className="text-[9px] text-on-surface-variant/30 font-bold uppercase tracking-[0.3em]">AES-256 Symmetric Encryption Active</p>
+              <div className="p-4 rounded-2xl border border-white/5 bg-white/[0.02]">
+                <Shield className="h-4 w-4 text-secondary mb-3" />
+                <p className="text-white text-[11px] font-bold uppercase tracking-widest mb-1">Security</p>
+                <p className="text-white/30 text-[10px]">E2E Encrypted</p>
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div className="mt-16 flex items-center gap-6 opacity-30">
-          <p className="text-[9px] font-bold uppercase tracking-[0.4em]">Integrated</p>
-          <div className="w-1.5 h-1.5 rounded-full bg-outline" />
-          <p className="text-[9px] font-bold uppercase tracking-[0.4em]">Autonomous</p>
-          <div className="w-1.5 h-1.5 rounded-full bg-outline" />
-          <p className="text-[9px] font-bold uppercase tracking-[0.4em]">Resilient</p>
+
+          <div className="mt-12 flex items-center justify-between opacity-20">
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-white">System v2.1</span>
+            <div className="flex gap-1">
+              <div className="w-1 h-1 rounded-full bg-secondary animate-pulse" />
+              <div className="w-1 h-1 rounded-full bg-secondary animate-pulse delay-75" />
+              <div className="w-1 h-1 rounded-full bg-secondary animate-pulse delay-150" />
+            </div>
+          </div>
         </div>
       </motion.div>
     </div>
   );
 }
+
+

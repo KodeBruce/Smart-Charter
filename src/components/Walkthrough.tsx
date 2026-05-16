@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronRight, ChevronLeft, Volume2, VolumeX, Sparkles, AlertCircle } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Volume2, VolumeX, Sparkles, Check, Square, CheckSquare } from 'lucide-react';
 
 interface Step {
   id: string;
@@ -14,81 +14,65 @@ interface Step {
 const steps: Step[] = [
   {
     id: 'welcome',
-    title: 'Hi there! Welcome to Smart Charter.',
-    content: 'Think of me as your legal AI partner. I’m here to help you scan through contracts, find those hidden risks, and keep track of everything so nothing slips through the cracks.',
-    audioText: 'Hi there! Welcome to Smart Charter. Think of me as your legal AI partner. I am here to help you scan through contracts, find those hidden risks, and keep track of everything so nothing slips through the cracks. Let’s take a quick look around.',
+    title: 'Meet Smart Charter: Your Legal Intelligence Hub.',
+    content: 'Smart Charter is a sophisticated legal intelligence platform designed to automate contract analysis and risk management. It uses advanced AI to identify risks, track obligations, and ensure compliance across your entire portfolio.',
+    audioText: 'Welcome to Smart Charter. I am your legal intelligence hub. This platform is a sophisticated engine designed to automate contract analysis and risk management. I will identify risks, track your obligations, and ensure compliance across your entire document portfolio.',
     position: 'center'
-  },
-  {
-    id: 'dashboard',
-    targetId: 'walkthrough-dashboard',
-    title: 'Your Command Center.',
-    content: 'Get a quick snapshot of your active projects, recent uploads, and overall contract health at a single glance.',
-    audioText: 'Welcome to your Command Center. Here you can get a quick snapshot of your active projects, recent uploads, and overall contract health at a single glance.',
-    position: 'right'
   },
   {
     id: 'ingest',
     targetId: 'walkthrough-ingest',
-    title: 'Import as easy as Drag & Drop.',
-    content: 'Just drop your contracts here. I\'ll read through them in seconds, highlighting the important bits and pointing out any potential red flags you should know about.',
-    audioText: 'Getting your documents into the system is easy. Just drop your contracts here and I will read through them in seconds, highlighting the important bits and pointing out any potential red flags you should know about.',
+    title: 'Upload. Analyze. Understand.',
+    content: 'Drop in any contract — PDF, DOCX, or plain text. The AI engine extracts every clause, scores the risk level, identifies parties, and surfaces obligations in seconds.',
+    audioText: 'Drop in any contract. The AI engine will extract every clause, score the risk level, identify parties, and surface all obligations in seconds. No manual reading required.',
+    position: 'right'
+  },
+  {
+    id: 'dashboard',
+    targetId: 'walkthrough-dashboard',
+    title: 'Your Portfolio Snapshot.',
+    content: 'Your dashboard provides a high-level view of your contract health. Monitor critical risks, upcoming expiries, and overall portfolio stability at a glance.',
+    audioText: 'Your dashboard gives you a live snapshot of your contract portfolio health. You can monitor critical risks, upcoming expiries, and overall portfolio stability at a glance.',
     position: 'right'
   },
   {
     id: 'projects',
     targetId: 'walkthrough-projects',
     title: 'Project Workspaces.',
-    content: 'Whether it\'s a big deal or a new batch of agreements, you can group your work into Workspaces. I can even help you draft new terms tailored to your specific country.',
-    audioText: 'Keep your work organized with Workspaces. Whether it is a big deal or a new batch of vendor agreements, you can group everything here. I can even help you draft new terms that are legally sound for your specific country.',
+    content: 'Organize work into specific Projects for each deal or client. This keeps your intelligence segmented and focused on the relevant legal context.',
+    audioText: 'Organize your work into specific Projects for each deal or client. This keeps your intelligence segmented and focused on the relevant legal context.',
+    position: 'right'
+  },
+  {
+    id: 'redlining',
+    targetId: 'walkthrough-compare',
+    title: 'Document Comparison.',
+    content: 'Compare multiple versions of a contract side-by-side. Our AI highlights key differences in jurisdiction, value, and risk, helping you spot critical changes instantly.',
+    audioText: 'Use the comparison tool to view multiple versions of a contract side-by-side. Our AI highlights key differences in jurisdiction, value, and risk, helping you spot critical changes instantly.',
+    position: 'right'
+  },
+  {
+    id: 'risk-framework',
+    targetId: 'walkthrough-risk',
+    title: 'AI Risk Playbooks.',
+    content: 'Architect custom review frameworks with AI. Define your own risk thresholds and mandatory clauses to ensure every document meets your institutional standards.',
+    audioText: 'Architect custom review frameworks with AI. You can define your own risk thresholds and mandatory clauses to ensure every document meets your institutional standards.',
     position: 'right'
   },
   {
     id: 'repository',
     targetId: 'walkthrough-repository',
-    title: 'Centralized Repository.',
-    content: 'This is where all your signed documents live. I\'ll keep an eye on expiry dates and alert you when something is coming up for renewal soon.',
-    audioText: 'This repository gives you a bird\'s-eye view of every signed document. I will keep an eye on expiry dates for you and send an alert when something is coming up for renewal, so you are never caught off guard.',
-    position: 'right'
-  },
-  {
-    id: 'compare',
-    targetId: 'walkthrough-compare',
-    title: 'Side-by-side Analysis.',
-    content: 'Need to spot the differences between contract versions? Compare documents instantly to identify changes in clauses and obligations.',
-    audioText: 'Need to spot the differences between contract versions? Use the comparison tool to compare documents instantly and identify changes in clauses and obligations.',
-    position: 'right'
-  },
-  {
-    id: 'esign',
-    targetId: 'walkthrough-esign',
-    title: 'Frictionless E-Sign.',
-    content: 'Send documents for signature, track status in real-time, and securely sign with your digital signature right inside the platform.',
-    audioText: 'Our new e-sign feature lets you send documents for signature, track status in real-time, and securely sign with your digital signature right inside the platform.',
-    position: 'right'
-  },
-  {
-    id: 'risk',
-    targetId: 'walkthrough-risk',
-    title: 'Risk Guard Playbooks.',
-    content: 'We use playbooks to make sure every contract meets your standards. You can use our pre-built ones or I can help you build one that fits your business perfectly.',
-    audioText: 'You can review every contract with confidence using our playbooks. They make sure everything meets your standards. You can use our pre-built ones, or we can work together to build a custom one that fits your business perfectly.',
-    position: 'right'
-  },
-  {
-    id: 'settings',
-    targetId: 'walkthrough-settings',
-    title: 'Personalize your Experience.',
-    content: 'Manage your profile, preferences, and security settings to tailor the platform to your specific workflow.',
-    audioText: 'Finally, you can manage your profile, preferences, and security settings in the settings menu to tailor the platform to your specific workflow.',
+    title: 'Intelligence Portfolio.',
+    content: 'Your signed and active contracts are indexed here. The AI watches for expiry dates, counterparty changes, and regulatory shifts that could affect each agreement.',
+    audioText: 'Your signed and active contracts are indexed in the Intelligence Portfolio. The AI watches for expiry dates and regulatory shifts that could affect each of your agreements.',
     position: 'right'
   },
   {
     id: 'extraction',
     targetId: 'walkthrough-extraction',
-    title: 'Deep Intelligence.',
-    content: 'When you want to get into the weeds, I’ll show you a full timeline of the contract, how it\'s performing, and specific legal citations for any high-risk clauses.',
-    audioText: 'And when you need to get into the weeds, I will show you a full timeline of the contract, how it is performing, and give you specific legal citations for any high-risk clauses. Ready to get started?',
+    title: 'Deep Clause Intelligence.',
+    content: 'Inside any contract, the Clauses tab shows every legal node with risk level, implications, and an AI Rewrite option to generate improved language instantly.',
+    audioText: 'Inside any contract, switch to the Clauses tab to browse every legal node. Each clause shows its risk level, implications, and an AI Rewrite option to generate improved language instantly. You are now ready to use Smart Charter.',
     position: 'top'
   }
 ];
@@ -99,6 +83,7 @@ export default function Walkthrough() {
   const [isMuted, setIsMuted] = useState(false);
   const [targetFound, setTargetFound] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, height: 0 });
+  const [dontShowAgainChecked, setDontShowAgainChecked] = useState(false);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -169,6 +154,23 @@ export default function Walkthrough() {
   }, []);
 
   useEffect(() => {
+    if (!isVisible) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') {
+        handleNext();
+      } else if (e.key === 'ArrowLeft') {
+        handlePrev();
+      } else if (e.key === 'Escape') {
+        finish();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVisible, currentStep, dontShowAgainChecked]); // Include state dependencies for latest handlers
+
+  useEffect(() => {
     if (currentStep >= 0 && currentStep < steps.length) {
       const step = steps[currentStep];
       
@@ -186,25 +188,31 @@ export default function Walkthrough() {
           // Filter for English voices first
           const enVoices = voices.filter(v => v.lang.startsWith('en-'));
           
-          // Prioritize higher quality/natural voices and specifically female ones
+          // Professional Hierarchy: 
+          // 1. Specific premium "Natural" voices (Microsoft, Google, Apple)
+          // 2. High-quality female personas
+          // 3. Fallbacks
           const preferredVoice = enVoices.find(v => 
-            (v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('premium') || v.name.toLowerCase().includes('enhanced')) && 
-            (v.name.toLowerCase().includes('female') || v.name.includes('Google') || v.name.includes('Samantha'))
+            (v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('neural') || v.name.toLowerCase().includes('online')) && 
+            (v.name.toLowerCase().includes('female') || v.name.includes('Aria') || v.name.includes('Jenny') || v.name.includes('Google US English'))
           ) || enVoices.find(v => 
-            v.name.toLowerCase().includes('female') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Moira')
-          ) || enVoices[0] || voices[0];
+            v.name.toLowerCase().includes('female') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Moira') || v.name.includes('Victoria')
+          ) || enVoices.find(v => v.lang === 'en-US') || enVoices[0] || voices[0];
           
           if (preferredVoice) {
             utterance.voice = preferredVoice;
           }
 
-          utterance.rate = 1.0;
-          utterance.pitch = 1.0;
+          // Professional tone adjustment
+          utterance.rate = 1.09; // Fine-tuned pace for optimal balance
+          utterance.pitch = 1.05; // Slightly higher for a more pleasant, helpful tone
           speechRef.current = utterance;
           window.speechSynthesis.speak(utterance);
         }, 100);
 
         return () => clearTimeout(speakTimer);
+      } else {
+        window.speechSynthesis.cancel();
       }
     }
   }, [currentStep, isMuted]);
@@ -234,6 +242,9 @@ export default function Walkthrough() {
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
+      if (dontShowAgainChecked) {
+        localStorage.setItem('walkthrough-completed', 'true');
+      }
       finish();
     }
   };
@@ -310,15 +321,16 @@ export default function Walkthrough() {
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className={`absolute pointer-events-auto w-[320px] bg-[#1A1A1A] border border-white/10 rounded-3xl shadow-2xl p-6 transition-all duration-300 z-[110]
+          className={`absolute pointer-events-auto w-[380px] bg-[#1A1A1A] border border-white/10 rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 z-[110]
             ${currentStepData.position === 'center' || !targetFound ? 'relative' : ''}
           `}
           style={(() => {
             if (currentStepData.position === 'center' || !targetFound) return {};
             
             const gap = 24;
-            const tooltipWidth = 320;
-            const tooltipHeight = 250; // Approximated
+            const tooltipWidth = 380;
+            const tooltipHeight = 310; // Approximated
+
             
             let top = 0;
             let left = 0;
@@ -344,10 +356,38 @@ export default function Walkthrough() {
             return { top, left };
           })()}
         >
+          {/* Step Sequence Bar */}
+          <div className="flex items-center overflow-x-auto gap-0 bg-white/[0.03] border-b border-white/5 px-4 py-3">
+            {steps.map((step, i) => (
+              <React.Fragment key={`seq-${i}`}>
+                <button
+                  onClick={() => setCurrentStep(i)}
+                  className="flex flex-col items-center gap-1 flex-shrink-0 group"
+                >
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all duration-200 ${
+                    i < currentStep
+                      ? 'bg-success/20 text-success border border-success/30'
+                      : i === currentStep
+                      ? 'bg-secondary text-black scale-110 shadow-lg shadow-secondary/30'
+                      : 'bg-white/5 text-white/20 border border-white/10'
+                  }`}>
+                    {i < currentStep ? <Check className="h-3 w-3" /> : i + 1}
+                  </div>
+                </button>
+                {i < steps.length - 1 && (
+                  <div className={`h-[1px] flex-1 min-w-[6px] mx-0.5 transition-all duration-300 ${
+                    i < currentStep ? 'bg-success/40' : 'bg-white/10'
+                  }`} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+
+          <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-secondary" />
-              <span className="text-[10px] font-bold text-white/60 uppercase tracking-[0.2em]">Guided Tour • Step {currentStep + 1} of {steps.length}</span>
+              <span className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">Guided Tour • Step {currentStep + 1} of {steps.length}</span>
             </div>
             <div className="flex items-center gap-2">
               <button 
@@ -371,13 +411,17 @@ export default function Walkthrough() {
           </p>
 
           <div className="flex items-center justify-between pt-4 border-t border-white/5">
-            <div className="flex gap-1">
-              {steps.map((_, i) => (
-                <div 
-                  key={`step-dot-${i}`} 
-                  className={`h-1 rounded-full transition-all duration-300 ${i === currentStep ? 'w-4 bg-secondary' : 'w-1 bg-white/10'}`} 
-                />
-              ))}
+            <div className="flex flex-col gap-2 items-start">
+              <button 
+                onClick={() => setDontShowAgainChecked(!dontShowAgainChecked)}
+                className="flex items-center gap-2 text-[9px] font-bold text-white/40 hover:text-white/60 uppercase tracking-widest transition-colors"
+              >
+                {dontShowAgainChecked ? <CheckSquare className="h-3 w-3 text-secondary" /> : <Square className="h-3 w-3" />}
+                Don't show again
+              </button>
+              <span className="text-[9px] font-bold text-white/70 uppercase tracking-widest">
+                Step {currentStep + 1} of {steps.length}
+              </span>
             </div>
             <div className="flex gap-2">
               {currentStep > 0 && (
@@ -396,6 +440,7 @@ export default function Walkthrough() {
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
+          </div>
           </div>
         </motion.div>
       </AnimatePresence>

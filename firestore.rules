@@ -53,7 +53,7 @@ service cloud.firestore {
              data.ownerId is string &&
              (data.projectId == null || data.projectId is string) &&
              (data.get('source', null) in ['Vault', 'Hub', 'Analysis Vault', 'Execution Hub', null]) &&
-             data.status in ['Analyzing', 'Review Required', 'Review Complete', 'Drafting', 'Generated', 'Signed'] &&
+             data.status in ['Ingesting', 'Analyzing', 'Review Required', 'Review Complete', 'Drafting', 'Generated', 'Signed', 'Failed'] &&
              (data.get('auditLogs', []) is list) &&
              data.createdAt is timestamp &&
              data.updatedAt is timestamp;
@@ -91,61 +91,59 @@ service cloud.firestore {
     // --- Path Routes ---
 
     match /esign_documents/{docId} {
-      allow list: if isEmailVerified() && (resource.data.ownerId == request.auth.uid || request.auth.token.email in resource.data.signers.map(s, s.email));
-      allow get: if isEmailVerified() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().signers.map(s, s.email));
-      allow create: if isEmailVerified() && isValidESignDoc(incoming()) && isValidId(docId);
-      allow delete: if isEmailVerified() && existing().ownerId == request.auth.uid;
-      allow update: if isEmailVerified() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().signers.map(s, s.email)) && (
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.token.email in resource.data.signers.map(s, s.email));
+      allow get: if isSignedIn() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().signers.map(s, s.email));
+      allow create: if isSignedIn() && isValidESignDoc(incoming()) && isValidId(docId);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow update: if isSignedIn() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().signers.map(s, s.email)) && (
         incoming().diff(existing()).affectedKeys().hasOnly(['signers', 'status', 'updatedAt', 'fields']) &&
         (incoming().get('updatedAt', null) == null || incoming().updatedAt == request.time)
       );
     }
 
     match /users/{userId} {
-      allow get: if isEmailVerified() && userId == request.auth.uid;
-      allow create: if isEmailVerified() && isValidUser(incoming());
-      allow update: if isEmailVerified() && userId == request.auth.uid && 
+      allow get: if isSignedIn() && userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidUser(incoming());
+      allow update: if isSignedIn() && userId == request.auth.uid && 
                        incoming().diff(existing()).affectedKeys().hasOnly(['name']) &&
                        incoming().name is string && incoming().name.size() <= 100;
     }
 
     match /projects/{projectId} {
-      allow get: if isEmailVerified() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().get('members', []));
-      allow list: if isEmailVerified() && (resource.data.ownerId == request.auth.uid || resource.data.get('members', []) != null && request.auth.token.email in resource.data.get('members', []));
-      allow create: if isEmailVerified() && isValidProject(incoming()) && isValidId(projectId);
-      allow delete: if isEmailVerified() && existing().ownerId == request.auth.uid;
-      allow update: if isEmailVerified() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().get('members', [])) && isValidProject(incoming()) && (
+      allow get: if isSignedIn() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().get('members', []));
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.get('members', []) != null && request.auth.token.email in resource.data.get('members', []));
+      allow create: if isSignedIn() && isValidProject(incoming()) && isValidId(projectId);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow update: if isSignedIn() && (existing().ownerId == request.auth.uid || request.auth.token.email in existing().get('members', [])) && isValidProject(incoming()) && (
         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'status', 'category', 'lead', 'signers', 'members', 'updatedAt', 'count']) &&
         incoming().updatedAt == request.time
       );
     }
 
     match /contracts/{contractId} {
-      allow get: if isEmailVerified() && (existing().ownerId == request.auth.uid || (existing().get('projectId', null) != null && isProjectOwnerOrMember(existing().projectId)));
-      allow list: if isEmailVerified() && (resource.data.ownerId == request.auth.uid || (resource.data.get('projectId', null) != null && isProjectOwnerOrMember(resource.data.projectId)));
-      allow create: if isEmailVerified() && isValidContract(incoming()) && isValidId(contractId);
-      allow delete: if isEmailVerified() && (existing().ownerId == request.auth.uid || (existing().get('projectId', null) != null && isProjectOwnerOrMember(existing().projectId)));
-      allow update: if isEmailVerified() && 
+      allow get: if isSignedIn() && (existing().ownerId == request.auth.uid || (existing().get('projectId', null) != null && isProjectOwnerOrMember(existing().projectId)));
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || (resource.data.get('projectId', null) != null && isProjectOwnerOrMember(resource.data.projectId)));
+      allow create: if isSignedIn() && incoming().ownerId == request.auth.uid && isValidId(contractId);
+      allow delete: if isSignedIn() && (existing().ownerId == request.auth.uid || (existing().get('projectId', null) != null && isProjectOwnerOrMember(existing().projectId)));
+      allow update: if isSignedIn() && 
                        (existing().ownerId == request.auth.uid || (existing().get('projectId', null) != null && isProjectOwnerOrMember(existing().projectId))) &&
-                       isValidContract(incoming()) && (
-                         // Action: Meta Update
-                         (incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'projectId', 'updatedAt', 'auditLogs', 'status', 'counterparty', 'category', 'value', 'expiry', 'startDate']) && incoming().updatedAt == request.time) ||
-                         // Action: Analysis Result
-                         (incoming().diff(existing()).affectedKeys().hasOnly(['riskLevel', 'overallRiskScore', 'status', 'content', 'updatedAt', 'auditLogs']) && incoming().updatedAt == request.time)
+                       (
+                         incoming().updatedAt == request.time &&
+                         incoming().ownerId == request.auth.uid
                        );
 
       match /insights/{insightId} {
-        allow read: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
-        allow write: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid && isValidInsight(incoming(), contractId);
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
+        allow write: if isSignedIn() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid && isValidInsight(incoming(), contractId);
       }
 
       match /actions/{actionId} {
-        allow read: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
-        allow create: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid && isValidActionItem(incoming(), contractId);
-        allow update: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid &&
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
+        allow create: if isSignedIn() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid && isValidActionItem(incoming(), contractId);
+        allow update: if isSignedIn() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid &&
                          incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
                          incoming().status in ['pending', 'completed'];
-        allow delete: if isEmailVerified() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
+        allow delete: if isSignedIn() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
       }
     }
   }

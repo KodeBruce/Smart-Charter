@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -6,11 +6,12 @@ import {
   Send, PenTool, FileText, CheckCircle2,
   Clock, Shield, Sparkles, X, Maximize2, Minimize2,
   ChevronRight, Download, Users,
-  MessageSquare, Files, Upload, MoreVertical, Trash2, Edit3
+  MessageSquare, Files, Upload, MoreVertical, Trash2, Edit3, RefreshCw
 } from 'lucide-react';
+
 import { db, auth, OperationType, handleFirestoreError, formatFirebaseDate } from '../lib/firebase';
 import { doc, onSnapshot, query, collection, where, setDoc, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore';
-import { generateText } from '../services/geminiService';
+import { generateText, analyzeContract } from '../services/geminiService';
 
 interface AuditLog {
   id: string;
@@ -39,6 +40,8 @@ export default function ProjectWorkspace() {
   const [project, setProject] = useState<any>(null);
   const [docs, setDocs] = useState<ProjectDoc[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     if (!id || !auth.currentUser) return;
@@ -87,12 +90,218 @@ export default function ProjectWorkspace() {
     };
   }, [id, auth.currentUser]);
 
+  const totalPages = Math.ceil(docs.length / pageSize);
+  const paginatedDocs = docs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [id]);
+
   const [editingDoc, setEditingDoc] = useState<ProjectDoc | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newDocName, setNewDocName] = useState('');
   const [newDocType, setNewDocType] = useState('Agreement');
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+
+  // Phase 5: Smart Starters
+  const [smartStarters, setSmartStarters] = useState<string[]>([]);
+  const [isLoadingStarters, setIsLoadingStarters] = useState(false);
+
+  const fetchStarters = useCallback(async () => {
+    if (!docs.length || !auth.currentUser) return;
+    setIsLoadingStarters(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const latestDoc = docs[0];
+      const res = await fetch('/api/gemini/starters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          documentName: latestDoc.name,
+          documentType: latestDoc.type || 'Legal Agreement',
+          summary: latestDoc.content?.slice(0, 500) || ''
+        })
+      });
+      const data = await res.json();
+      if (data.starters) setSmartStarters(data.starters);
+    } catch (e) {
+      console.error('[Smart Starters Error]:', e);
+    } finally {
+      setIsLoadingStarters(false);
+    }
+  }, [docs]);
+
+  useEffect(() => {
+    if (docs.length > 0 && smartStarters.length === 0) {
+      fetchStarters();
+    }
+  }, [docs]);
+
+
+  const LEGAL_TEMPLATES = [
+    {
+      name: 'Service Level Agreement (SLA)',
+      type: 'Agreement',
+      content: `SERVICE LEVEL AGREEMENT (SLA)
+
+1. INTRODUCTION
+This Service Level Agreement ("SLA") is entered into as of [DATE] by and between [COMPANY NAME] ("Provider") and [CLIENT NAME] ("Client").
+
+2. SERVICE SCOPE
+Provider shall provide the following services: [DESCRIBE SERVICES].
+
+3. PERFORMANCE STANDARDS
+3.1 Availability: Provider guarantees a 99.9% uptime for the hosted services.
+3.2 Support Response Times:
+- Critical Issues: 2 hours
+- Standard Issues: 24 hours
+- Information Requests: 48 hours
+
+4. SERVICE CREDITS
+In the event of a breach of performance standards, Client shall be entitled to service credits calculated as follows: [DETAILS].
+
+5. TERM AND TERMINATION
+This SLA remains in effect for the duration of the Master Services Agreement.`
+    },
+    {
+      name: 'Mutual Non-Disclosure Agreement (NDA)',
+      type: 'Agreement',
+      content: `MUTUAL NON-DISCLOSURE AGREEMENT
+
+1. DEFINITION OF CONFIDENTIAL INFORMATION
+"Confidential Information" means any non-public information disclosed by one party to the other, whether orally or in writing, that is designated as confidential.
+
+2. OBLIGATIONS OF RECEIVING PARTY
+The Receiving Party shall:
+(a) protect the Disclosing Party's Confidential Information with at least the same degree of care it uses for its own.
+(b) not use Confidential Information for any purpose outside the scope of this Agreement.
+
+3. EXCLUSIONS
+Confidential Information shall not include information that is or becomes generally known to the public without breach of any obligation.
+
+4. TERM
+The obligations under this Agreement shall survive for a period of [NUMBER] years from the date of disclosure.`
+    },
+    {
+      name: 'Employment Agreement',
+      type: 'Agreement',
+      content: `EMPLOYMENT AGREEMENT
+
+1. POSITION AND DUTIES
+[COMPANY NAME] (the "Employer") agrees to employ [EMPLOYEE NAME] in the position of [POSITION].
+
+2. COMPENSATION
+The Employee shall receive a base salary of [AMOUNT], payable in accordance with the Employer's standard payroll practices.
+
+3. BENEFITS
+The Employee shall be entitled to participate in all benefit plans generally available to employees.
+
+4. CONFIDENTIALITY AND IP
+The Employee agrees that all intellectual property created during the course of employment shall belong exclusively to the Employer.
+
+5. TERMINATION
+Either party may terminate this agreement with [NUMBER] days' written notice.`
+    },
+    {
+      name: 'Master Services Agreement (MSA)',
+      type: 'Agreement',
+      content: `MASTER SERVICES AGREEMENT
+
+1. SERVICES
+Provider agrees to perform the services described in subsequent Statements of Work (SOWs) issued under this Agreement.
+
+2. FEES AND PAYMENT
+Fees for services shall be as set forth in the applicable SOW. All payments are due within 30 days of invoice date.
+
+3. INTELLECTUAL PROPERTY
+Unless otherwise specified in an SOW, all pre-existing IP remains the property of the respective party. Deliverables shall become the property of the Client upon full payment.
+
+4. LIMITATION OF LIABILITY
+Neither party shall be liable for any indirect, incidental, or consequential damages.
+
+5. INDEMNIFICATION
+Each party shall indemnify and hold the other harmless from third-party claims arising from gross negligence.`
+    },
+    {
+      name: 'Partnership Agreement',
+      type: 'Agreement',
+      content: `PARTNERSHIP AGREEMENT
+
+1. FORMATION
+The undersigned parties hereby form a partnership under the name of [PARTNERSHIP NAME].
+
+2. CONTRIBUTIONS
+Partners shall contribute the following capital to the partnership: [DETAILS].
+
+3. PROFITS AND LOSSES
+Net profits and losses shall be shared among the partners in proportion to their capital contributions.
+
+4. MANAGEMENT
+All partners shall have equal rights in the management and conduct of the partnership business.
+
+5. WITHDRAWAL
+A partner may withdraw from the partnership upon [NUMBER] days' notice, subject to the terms of buyout defined herein.`
+    }
+  ];
+
+  const handleCreateFromTemplate = async (template: any) => {
+    if (!auth.currentUser || !id) return;
+    
+    const docId = `doc_${Date.now()}`;
+    const newDoc: any = {
+      id: docId,
+      name: template.name,
+      status: 'Drafting',
+      type: template.type,
+      source: 'Hub',
+      ownerId: auth.currentUser.uid,
+      projectId: id,
+      content: template.content,
+      analysis: JSON.stringify({
+        name: template.name,
+        rawText: template.content,
+        counterparty: 'Pending',
+        jurisdiction: 'Pending',
+        governingLaw: 'Pending',
+        terminationNotice: 'Pending',
+        expiry: 'Pending',
+        riskLevel: 'Medium Risk',
+        riskScore: 0,
+        summary: 'Document generated from institutional template. Deep Analysis recommended.',
+        parties: [],
+        signatories: [],
+        keyClauses: [],
+        keyObligations: [],
+        missingProtections: [],
+        directive: 'Run portfolio analysis to generate a strategic directive.'
+      }),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      auditLogs: [
+        { 
+          id: crypto.randomUUID(), 
+          userId: auth.currentUser.uid, 
+          userName: auth.currentUser.displayName || 'User', 
+          action: `Generated from ${template.name} template`, 
+          details: `Successfully initialized project document using the ${template.name} institutional framework. All core legal modules are now active and ready for analysis.`,
+          timestamp: new Date().toISOString() 
+        }
+      ]
+    };
+
+    try {
+      await setDoc(doc(db, 'contracts', docId), newDoc);
+      setIsTemplateModalOpen(false);
+      setEditingDoc({
+        ...newDoc,
+        lastEdited: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `contracts/${docId}`);
+    }
+  };
 
   // AI Generator States
   const [isDrafting, setIsDrafting] = useState(false);
@@ -172,7 +381,8 @@ export default function ProjectWorkspace() {
 
     for (const file of files) {
       const docId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const newDoc: any = {
+      // Show a pending record immediately
+      const pendingDoc: any = {
         id: docId,
         name: file.name,
         status: 'Review Required',
@@ -180,16 +390,53 @@ export default function ProjectWorkspace() {
         source: 'Vault',
         ownerId: auth.currentUser.uid,
         projectId: id,
-        content: `Content from uploaded file: ${file.name}. (Simulated upload)`,
+        content: '',
+        analysis: JSON.stringify({
+          name: file.name,
+          rawText: '',
+          counterparty: 'Analyzing...',
+          jurisdiction: 'Analyzing...',
+          governingLaw: 'Analyzing...',
+          terminationNotice: 'Analyzing...',
+          expiry: 'Analyzing...',
+          riskLevel: 'Medium Risk',
+          riskScore: 0,
+          summary: 'Document is being analyzed by the AI engine...',
+          parties: [], signatories: [], keyClauses: [],
+          keyObligations: [], missingProtections: [],
+          directive: 'AI analysis in progress...'
+        }),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        auditLogs: [
-          { id: crypto.randomUUID(), userId: auth.currentUser.uid, userName: auth.currentUser.displayName || 'User', action: 'Uploaded file via drag-and-drop', timestamp: new Date().toISOString() }
-        ]
+        auditLogs: [{ 
+          id: crypto.randomUUID(), 
+          userId: auth.currentUser.uid, 
+          userName: auth.currentUser.displayName || 'User', 
+          action: 'Uploaded file via drag-and-drop',
+          details: `Analyzing: ${file.name}`,
+          timestamp: new Date().toISOString() 
+        }]
       };
 
       try {
-        await setDoc(doc(db, 'contracts', docId), newDoc);
+        await setDoc(doc(db, 'contracts', docId), pendingDoc);
+        
+        // Run real AI analysis and update the Firestore record
+        const analysis = await analyzeContract(file);
+        await setDoc(doc(db, 'contracts', docId), {
+          content: analysis.rawText || '',
+          analysis: JSON.stringify(analysis),
+          status: 'Review Required',
+          updatedAt: serverTimestamp(),
+          auditLogs: [{
+            id: crypto.randomUUID(),
+            userId: auth.currentUser!.uid,
+            userName: auth.currentUser!.displayName || 'User',
+            action: 'AI analysis complete',
+            details: `Extracted ${analysis.keyClauses?.length || 0} clauses, ${analysis.parties?.length || 0} parties. Risk: ${analysis.riskLevel || 'Unknown'}.`,
+            timestamp: new Date().toISOString()
+          }, ...pendingDoc.auditLogs]
+        }, { merge: true });
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, `contracts/${docId}`);
       }
@@ -319,6 +566,24 @@ export default function ProjectWorkspace() {
       type: 'AI Generated',
       source: 'Hub',
       content: draftResult,
+      analysis: JSON.stringify({
+        name: `Draft Terms (${jurisdiction})`,
+        rawText: draftResult,
+        counterparty: 'Pending',
+        jurisdiction: jurisdiction,
+        governingLaw: 'Pending',
+        terminationNotice: 'Pending',
+        expiry: 'Pending',
+        riskLevel: 'Medium Risk',
+        riskScore: 0,
+        summary: 'AI drafted content successfully pushed to project stack.',
+        parties: [],
+        signatories: [],
+        keyClauses: [],
+        keyObligations: [],
+        missingProtections: [],
+        directive: 'Deep Analysis recommended for drafted terms.'
+      }),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       auditLogs: [
@@ -349,10 +614,35 @@ export default function ProjectWorkspace() {
       ownerId: auth.currentUser.uid,
       projectId: id,
       content: 'Start writing your document here...',
+      analysis: JSON.stringify({
+        name: newDocName,
+        rawText: 'Start writing your document here...',
+        counterparty: 'Pending',
+        jurisdiction: 'Pending',
+        governingLaw: 'Pending',
+        terminationNotice: 'Pending',
+        expiry: 'Pending',
+        riskLevel: 'Medium Risk',
+        riskScore: 0,
+        summary: 'Manual document initialized.',
+        parties: [],
+        signatories: [],
+        keyClauses: [],
+        keyObligations: [],
+        missingProtections: [],
+        directive: 'Document initialized manually. Add content and analyze for risks.'
+      }),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       auditLogs: [
-        { id: crypto.randomUUID(), userId: auth.currentUser.uid, userName: auth.currentUser.displayName || 'User', action: 'Created manually', timestamp: new Date().toISOString() }
+        { 
+          id: crypto.randomUUID(), 
+          userId: auth.currentUser.uid, 
+          userName: auth.currentUser.displayName || 'User', 
+          action: 'Manual document creation', 
+          details: 'Initialized a blank legal canvas for manual drafting and custom clause injection.',
+          timestamp: new Date().toISOString() 
+        }
       ]
     };
 
@@ -383,7 +673,14 @@ export default function ProjectWorkspace() {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       auditLogs: [
-        { id: crypto.randomUUID(), userId: auth.currentUser.uid, userName: auth.currentUser.displayName || 'User', action: 'Duplicated from ' + projectDoc.name, timestamp: new Date().toISOString() }
+        { 
+          id: crypto.randomUUID(), 
+          userId: auth.currentUser.uid, 
+          userName: auth.currentUser.displayName || 'User', 
+          action: 'Duplicated from ' + projectDoc.name, 
+          details: `Created a copy of ${projectDoc.name} for iterative editing.`,
+          timestamp: new Date().toISOString() 
+        }
       ]
     };
 
@@ -438,7 +735,7 @@ export default function ProjectWorkspace() {
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-[200] bg-primary/10 backdrop-blur-[2px] flex items-center justify-center p-12 pointer-events-none"
           >
-            <div className="w-full h-full border-4 border-dashed border-primary/40 rounded-[48px] flex flex-col items-center justify-center gap-6 bg-surface/60 shadow-2xl">
+            <div className="w-full h-full border-4 border-dashed border-primary/40 rounded-[48px] flex flex-col items-center justify-center gap-6 bg-surface/60 dark:bg-surface-container/60 shadow-2xl">
               <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-secondary shadow-xl shadow-primary/20 animate-bounce">
                 <Upload className="h-10 w-10" />
               </div>
@@ -463,7 +760,7 @@ export default function ProjectWorkspace() {
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-surface border border-outline rounded-[32px] p-8 w-full max-w-md shadow-2xl"
+                  className="bg-surface dark:bg-surface-container border border-outline dark:border-outline/20 rounded-[32px] p-8 w-full max-w-md shadow-2xl"
                 >
                   <div className="flex justify-between items-start mb-6">
                     <div>
@@ -520,7 +817,7 @@ export default function ProjectWorkspace() {
                           value={editedLead}
                           onChange={(e) => setEditedLead(e.target.value)}
                           placeholder="Lead Name"
-                          className="w-full bg-surface-container px-4 py-3 rounded-2xl border border-outline focus:border-primary transition-colors text-sm font-bold outline-none"
+                          className="w-full bg-surface-container dark:bg-surface-container-high px-4 py-3 rounded-2xl border border-outline dark:border-outline/20 focus:border-primary transition-colors text-sm font-bold outline-none"
                         />
                       </div>
                     </div>
@@ -528,7 +825,7 @@ export default function ProjectWorkspace() {
                     <button 
                       onClick={handleUpdateHeader}
                       disabled={!editedName}
-                      className="w-full py-4 bg-primary text-white rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 mt-4"
+                      className="w-full py-4 bg-primary text-on-primary rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 mt-4"
                     >
                       Save Changes
                     </button>
@@ -566,7 +863,7 @@ export default function ProjectWorkspace() {
                         initial={{ opacity: 0, scale: 0.9, y: -10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                        className="absolute left-0 top-full mt-2 w-48 bg-surface border border-outline rounded-2xl shadow-2xl z-20 py-2 p-2"
+                        className="absolute left-0 top-full mt-2 w-48 bg-surface dark:bg-surface-container border border-outline dark:border-outline/20 rounded-2xl shadow-2xl z-20 py-2 p-2"
                       >
                         <button 
                           onClick={() => {
@@ -661,14 +958,6 @@ export default function ProjectWorkspace() {
             <span className="text-xs font-bold">AI Drafting</span>
             {activeTab === 'drafting' && <motion.div layoutId="activeTab" className="absolute right-0 w-1 h-4 bg-primary rounded-l-full" />}
           </button>
-          <button 
-            onClick={() => setActiveTab('sharing')}
-            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all relative ${activeTab === 'sharing' ? 'text-primary' : 'hover:bg-surface-container text-on-surface-variant/60'}`}
-          >
-            <PenTool className={`h-4 w-4 ${activeTab === 'sharing' ? 'text-primary' : ''}`} />
-            <span className="text-xs font-bold">Signatures</span>
-            {activeTab === 'sharing' && <motion.div layoutId="activeTab" className="absolute right-0 w-1 h-4 bg-primary rounded-l-full" />}
-          </button>
           
           <div className="mt-auto border-t border-outline pt-4 space-y-4">
              <div className="p-4 bg-surface-container-low rounded-2xl border border-outline">
@@ -702,19 +991,26 @@ export default function ProjectWorkspace() {
                   </div>
                   <div className="flex gap-3">
                     <button 
+                      onClick={() => setIsTemplateModalOpen(true)} 
+                      className="px-6 py-2.5 bg-secondary/10 border border-secondary/30 text-primary rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-secondary/20 transition-all flex items-center gap-2"
+                    >
+                      <Sparkles className="h-3 w-3 text-secondary-content" />
+                      Templates Library
+                    </button>
+                    <button 
                       onClick={() => setIsCreateModalOpen(true)} 
                       className="px-6 py-2.5 bg-surface border border-outline text-primary rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-surface-container transition-all"
                     >
                       New Document
                     </button>
-                    <button onClick={() => setActiveTab('drafting')} className="px-6 py-2.5 bg-primary text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-primary/20">
+                    <button onClick={() => setActiveTab('drafting')} className="px-6 py-2.5 bg-primary text-on-primary rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-primary/20">
                       Draft with AI
                     </button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
-                  {docs.map((docItem) => (
+                  {paginatedDocs.map((docItem) => (
                     <div key={`stack-doc-${docItem.id}`} className="p-4 bg-surface-container-low border border-outline rounded-2xl flex items-center justify-between hover:border-primary/40 transition-all group">
                       <div className="flex items-center gap-4">
                         <button 
@@ -725,7 +1021,7 @@ export default function ProjectWorkspace() {
                               : 'bg-surface border border-outline text-primary hover:bg-primary hover:text-white'
                           }`}
                         >
-                          {docItem.type === 'Signature' ? <Sparkles className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                          {docItem.type === 'Signature' ? <FileText className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
                         </button>
                         <div>
                           <p className="text-[13px] font-bold text-primary tracking-tight cursor-pointer hover:text-secondary-content transition-colors" onClick={() => setEditingDoc(docItem)}>{docItem.name}</p>
@@ -841,9 +1137,42 @@ export default function ProjectWorkspace() {
                           </AnimatePresence>
                         </div>
                       </div>
+                    </div>
+                  ))}
+                </div>
+
+                  {/* Pagination Footer */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-8 pb-4 border-t border-outline/10">
+                      <p className="text-[10px] font-bold text-on-surface/30 uppercase tracking-widest">
+                        Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, docs.length)} of {docs.length} files
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="px-4 py-2 border border-outline/20 rounded-lg text-[9px] font-black uppercase tracking-widest text-on-surface/60 hover:bg-surface-container disabled:opacity-30 transition-all"
+                        >
+                          Previous
+                        </button>
+                        <div className="flex items-center gap-1 px-3">
+                          {Array.from({ length: totalPages }).map((_, i) => (
+                            <div 
+                              key={i} 
+                              className={`h-1 rounded-full transition-all duration-500 ${i + 1 === currentPage ? 'w-4 bg-primary' : 'w-1 bg-outline/30'}`} 
+                            />
+                          ))}
+                        </div>
+                        <button 
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="px-4 py-2 border border-outline/20 rounded-lg text-[9px] font-black uppercase tracking-widest text-on-surface/60 hover:bg-surface-container disabled:opacity-30 transition-all"
+                        >
+                          Next
+                        </button>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
 
@@ -862,7 +1191,7 @@ export default function ProjectWorkspace() {
                       initial={{ x: '100%' }}
                       animate={{ x: 0 }}
                       exit={{ x: '100%' }}
-                      className={`fixed right-0 top-0 bottom-0 w-full ${isFullScreen ? 'max-w-full' : 'max-w-[800px]'} bg-surface z-[70] shadow-2xl flex flex-col border-l border-outline transition-all duration-300`}
+                      className={`fixed right-0 top-0 bottom-0 w-full ${isFullScreen ? 'max-w-full' : 'max-w-[800px]'} bg-surface dark:bg-surface-container z-[70] shadow-2xl flex flex-col border-l border-outline dark:border-outline/20 transition-all duration-300`}
                     >
                       <div className="p-6 border-b border-outline flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
@@ -935,7 +1264,7 @@ export default function ProjectWorkspace() {
                               <textarea 
                                 value={editingDoc.content}
                                 onChange={(e) => setEditingDoc({...editingDoc, content: e.target.value})}
-                                className="flex-1 w-full bg-white border border-outline rounded-2xl p-8 text-sm font-medium leading-relaxed outline-none focus:ring-1 focus:ring-secondary/20 shadow-sm resize-none"
+                                className="flex-1 w-full bg-surface dark:bg-surface-container-high border border-outline dark:border-outline/20 rounded-2xl p-8 text-sm font-medium leading-relaxed outline-none focus:ring-1 focus:ring-secondary/20 shadow-sm resize-none"
                               />
                            </div>
                          )}
@@ -943,13 +1272,6 @@ export default function ProjectWorkspace() {
 
                       {!isHistoryOpen && (
                         <div className="p-6 border-t border-outline flex items-center justify-between gap-3 bg-surface">
-                          <button 
-                            onClick={() => setIsSignModalOpen(true)}
-                            className="px-6 py-2.5 bg-secondary/10 border border-secondary/20 text-primary text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-secondary/20 transition-all flex items-center gap-2"
-                          >
-                            <PenTool className="h-3.5 w-3.5" />
-                            Sign Document
-                          </button>
                           <div className="flex items-center gap-3">
                             <button 
                               onClick={() => setEditingDoc(null)}
@@ -959,7 +1281,7 @@ export default function ProjectWorkspace() {
                             </button>
                             <button 
                               onClick={() => saveDocRefactored(editingDoc)}
-                              className="px-8 py-2.5 bg-primary text-white text-[10px] font-bold uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                              className="px-8 py-2.5 bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                             >
                               Save Changes
                             </button>
@@ -1034,7 +1356,7 @@ export default function ProjectWorkspace() {
                         <button 
                           disabled={!newDocName}
                           onClick={handleCreateManual}
-                          className="flex-[2] py-3 bg-primary text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20 disabled:opacity-50"
+                          className="flex-[2] py-3 bg-primary text-on-primary rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20 disabled:opacity-50"
                         >
                           Create Workspace
                         </button>
@@ -1064,7 +1386,42 @@ export default function ProjectWorkspace() {
 
                 <div className="bg-surface-container-low border border-outline rounded-[32px] p-8 shadow-sm">
                   <div className="flex flex-col gap-4">
-                    <p className="text-[9px] font-bold text-primary/40 uppercase tracking-[0.3em]">Draft Requirements</p>
+                  {/* Phase 5: Smart Starters */}
+                  {(smartStarters.length > 0 || isLoadingStarters) && (
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-[9px] font-bold text-primary/40 uppercase tracking-[0.3em]">Smart Starters · Tailored to Your Documents</p>
+                        <button
+                          onClick={fetchStarters}
+                          disabled={isLoadingStarters}
+                          className="p-1 rounded-lg text-primary/30 hover:text-primary transition-all disabled:opacity-50"
+                          title="Regenerate starters"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${isLoadingStarters ? 'animate-spin' : ''}`} />
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {isLoadingStarters ? (
+                          [1, 2, 3, 4].map(i => (
+                            <div key={i} className="h-8 w-48 bg-surface-container-high rounded-full animate-pulse" />
+                          ))
+                        ) : (
+                          smartStarters.map((starter, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setDraftPrompt(starter)}
+                              className="px-4 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/15 hover:border-primary/30 text-primary rounded-full text-[10px] font-bold transition-all text-left leading-snug"
+                            >
+                              {starter}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-[9px] font-bold text-primary/40 uppercase tracking-[0.3em]">Draft Requirements</p>
+
                     <textarea 
                       value={draftPrompt}
                       onChange={(e) => setDraftPrompt(e.target.value)}
@@ -1109,13 +1466,13 @@ export default function ProjectWorkspace() {
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-6"
                   >
-                    <div className="p-8 bg-white border border-outline rounded-[32px] shadow-sm font-serif italic text-sm text-primary leading-relaxed whitespace-pre-wrap">
+                    <div className="p-8 bg-surface dark:bg-surface-container-high border border-outline dark:border-outline/20 rounded-[32px] shadow-sm font-serif italic text-sm text-primary dark:text-primary-light leading-relaxed whitespace-pre-wrap">
                       {draftResult}
                     </div>
                     <div className="flex gap-4">
                       <button 
                         onClick={createDocFromDraft}
-                        className="flex-1 py-4 bg-primary text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20"
+                        className="flex-1 py-4 bg-primary text-on-primary rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20"
                       >
                         Push to Project stack
                       </button>
@@ -1131,120 +1488,6 @@ export default function ProjectWorkspace() {
               </motion.div>
             )}
 
-            {activeTab === 'sharing' && (
-              <motion.div 
-                key="sharing"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-8"
-              >
-                 <div className="flex justify-between items-end">
-                  <div>
-                    <h1 className="text-2xl font-bold text-primary tracking-tighter">Signature Management</h1>
-                    <p className="text-[10px] font-bold text-primary/40 uppercase tracking-widest mt-1">Track signing progress and invite stakeholders</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-surface-container-low border border-outline rounded-[32px] p-8 space-y-6">
-                    <div className="flex items-center gap-3">
-                      <Users className="h-5 w-5 text-secondary-content" />
-                      <h4 className="text-sm font-bold text-primary tracking-tight">External Signers</h4>
-                    </div>
-                    <div className="space-y-4">
-                      {project?.signers && project.signers.length > 0 ? (
-                        project.signers.map((signer: any, idx: number) => (
-                          <div key={`signer-${idx}`} className="flex items-center justify-between p-4 bg-surface rounded-2xl border border-outline">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                                {signer.email[0].toUpperCase()}
-                              </div>
-                              <span className="text-xs font-medium text-primary">{signer.email}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${signer.status === 'Signed' ? 'bg-secondary/10 text-primary' : 'bg-primary/5 text-primary/50'}`}>
-                                {signer.status}
-                              </span>
-                              <button 
-                                onClick={() => handleDeleteSigner(signer.email)}
-                                className="p-1 hover:bg-error/10 hover:text-error rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-8 text-center text-on-surface-variant/40 italic text-[10px] uppercase font-bold tracking-widest bg-surface/50 rounded-2xl border border-dashed border-outline">
-                          No signers assigned
-                        </div>
-                      )}
-                    </div>
-                    
-                    {isAddSignerOpen ? (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-3 p-4 bg-surface rounded-2xl border border-primary/20 shadow-sm"
-                      >
-                         <p className="text-[9px] font-bold text-primary/40 uppercase tracking-widest">Signer Email Address</p>
-                         <input 
-                           type="email"
-                           value={signerEmail}
-                           onChange={(e) => setSignerEmail(e.target.value)}
-                           placeholder="e.g. legal@acme.com"
-                           className="w-full bg-surface-container-low border border-outline rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
-                         />
-                         <div className="flex gap-2">
-                           <button 
-                             onClick={() => setIsAddSignerOpen(false)}
-                             className="flex-1 py-2 text-[9px] font-bold uppercase tracking-widest text-primary/40"
-                           >
-                             Cancel
-                           </button>
-                           <button 
-                             disabled={!(signerEmail || '').includes('@')}
-                             onClick={handleAddSigner}
-                             className="flex-[2] py-2 bg-primary text-white rounded-lg text-[9px] font-bold uppercase tracking-widest disabled:opacity-50"
-                           >
-                             Send Invite
-                           </button>
-                         </div>
-                      </motion.div>
-                    ) : (
-                      <button 
-                        onClick={() => setIsAddSignerOpen(true)}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-surface border-2 border-dashed border-outline rounded-2xl text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40 hover:border-primary/40 hover:text-primary transition-all"
-                      >
-                        <Mail className="h-3.5 w-3.5" />
-                        Add Signer
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="bg-[#0D0D0D] text-white rounded-[32px] p-8 relative overflow-hidden flex flex-col justify-between">
-                    <div className="relative z-10">
-                      <Shield className="h-8 w-8 text-secondary mb-6" />
-                      <h4 className="text-2xl font-bold tracking-tighter mb-2">Finalize & Send</h4>
-                      <p className="text-xs text-white/40 leading-relaxed max-w-[280px]">
-                        Review all documents, confirm signers, and trigger the execution workflow once terms are finalized.
-                      </p>
-                    </div>
-                    <button 
-                      onClick={handleRunSignatureLoop}
-                      disabled={isLooping || !project?.signers?.length}
-                      className="relative z-10 w-full py-4 bg-white text-black rounded-2xl text-[11px] font-extrabold uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
-                    >
-                      {isLooping ? 'Initializing...' : 'Run Signature Loop'}
-                    </button>
-                    <div className="absolute top-0 right-0 p-8 opacity-5">
-                      <FileText className="h-32 w-32" />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
           </AnimatePresence>
 
           {/* Share Workspace Modal */}
@@ -1322,7 +1565,7 @@ export default function ProjectWorkspace() {
                       <button 
                         disabled={!(shareEmail || '').includes('@')}
                         onClick={handleShareProject}
-                        className="flex-[2] py-4 bg-primary text-white rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                        className="flex-[2] py-4 bg-primary text-on-primary rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                       >
                         Invite Colleague
                       </button>
@@ -1348,7 +1591,7 @@ export default function ProjectWorkspace() {
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
-                  className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[500px] bg-white rounded-[48px] p-12 z-[130] shadow-2xl overflow-hidden"
+                  className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[500px] bg-surface dark:bg-surface-container rounded-[48px] p-12 z-[130] shadow-2xl overflow-hidden border border-outline dark:border-outline/20"
                 >
                   <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-secondary via-primary to-secondary" />
                   
@@ -1394,11 +1637,84 @@ export default function ProjectWorkspace() {
                         <button 
                            disabled={!signature}
                            onClick={() => handleSignDocument(editingDoc)}
-                           className="flex-[2] py-4 bg-primary text-white rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                           className="flex-[2] py-4 bg-primary text-on-primary rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                         >
                            Execute & Verify
                         </button>
                      </div>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+          
+          {/* Template Selection Modal */}
+          <AnimatePresence>
+            {isTemplateModalOpen && (
+              <>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsTemplateModalOpen(false)}
+                  className="fixed inset-0 bg-[#0D0D0D]/80 backdrop-blur-md z-[120]"
+                />
+                <motion.div 
+                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                  className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl bg-surface rounded-[48px] p-12 z-[130] shadow-2xl border border-outline overflow-hidden"
+                >
+                  <div className="flex justify-between items-start mb-10">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-primary rounded-[24px] flex items-center justify-center text-secondary shadow-lg shadow-primary/20">
+                        <Sparkles className="h-8 w-8" />
+                      </div>
+                      <div>
+                        <h2 className="text-3xl font-bold text-primary tracking-tight">Legal Templates</h2>
+                        <p className="text-[10px] font-bold text-primary/40 uppercase tracking-[0.3em]">Institutional Standard Documents</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setIsTemplateModalOpen(false)} className="p-3 hover:bg-surface-container rounded-2xl transition-all">
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto custom-scrollbar pr-4">
+                    {LEGAL_TEMPLATES.map((template, idx) => (
+                      <motion.div 
+                        key={`template-${idx}`}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleCreateFromTemplate(template)}
+                        className="p-6 bg-surface-container-low border border-outline rounded-[32px] hover:border-primary/40 cursor-pointer transition-all group relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                           <FileText className="h-24 w-24" />
+                        </div>
+                        <h4 className="text-sm font-bold text-primary mb-2 group-hover:text-secondary-content transition-colors">{template.name}</h4>
+                        <div className="flex items-center gap-3">
+                           <span className="text-[8px] font-black uppercase tracking-widest bg-primary/10 text-primary px-2 py-0.5 rounded">Template</span>
+                           <span className="text-[8px] font-bold text-primary/30 uppercase tracking-widest">{template.type}</span>
+                        </div>
+                        <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-primary/40 group-hover:text-primary transition-all">
+                           <span>Generate Draft</span>
+                           <ChevronRight className="h-3 w-3" />
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <div className="mt-10 pt-10 border-t border-outline flex items-center justify-between">
+                     <p className="text-[11px] font-medium text-on-surface-variant/40 leading-relaxed max-w-[400px]">
+                        These templates are provided for drafting purposes. Please consult with legal counsel to ensure jurisdiction-specific compliance.
+                     </p>
+                     <button 
+                       onClick={() => setIsTemplateModalOpen(false)}
+                       className="px-8 py-3 bg-surface border border-outline text-[11px] font-bold uppercase tracking-widest rounded-2xl hover:bg-surface-container transition-all"
+                     >
+                       Close Library
+                     </button>
                   </div>
                 </motion.div>
               </>

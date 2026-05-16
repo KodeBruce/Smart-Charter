@@ -317,7 +317,7 @@ export default function RiskPlaybook() {
             >
               <div className="mb-6">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-surface border border-outline flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+                  <div className="w-10 h-10 rounded-xl bg-surface border border-outline flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-all shadow-sm">
                     <BookOpen className="h-5 w-5" />
                   </div>
                   <div className={`text-[8px] font-extrabold uppercase tracking-widest ${
@@ -366,7 +366,7 @@ export default function RiskPlaybook() {
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => setIsAiModalOpen(true)}
-                className="px-8 py-3 bg-white text-black text-[11px] font-extrabold uppercase tracking-widest rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10 flex items-center gap-2"
+                className="px-8 py-3 bg-primary text-on-primary text-[11px] font-extrabold uppercase tracking-widest rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center gap-2"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Generate with AI
@@ -400,7 +400,7 @@ export default function RiskPlaybook() {
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[400px] bg-surface rounded-[32px] p-8 z-[70] shadow-2xl border border-outline"
             >
                <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-white">
+                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-on-primary">
                   <BookOpen className="h-6 w-6" />
                 </div>
                 <div>
@@ -429,7 +429,7 @@ export default function RiskPlaybook() {
                         onClick={() => setSelectedJurisdiction(j)}
                         className={`py-2 px-3 rounded-xl border text-[10px] font-bold transition-all ${
                           selectedJurisdiction === j 
-                            ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' 
+                            ? 'bg-primary text-on-primary border-primary shadow-lg shadow-primary/20' 
                             : 'bg-surface-container-low border-outline text-on-surface-variant/60 hover:border-primary/40'
                         }`}
                       >
@@ -450,7 +450,7 @@ export default function RiskPlaybook() {
                 <button 
                   disabled={!newPlaybookName}
                   onClick={handleCreateManual}
-                  className="flex-[2] py-3 bg-primary text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20 disabled:opacity-50"
+                  className="flex-[2] py-3 bg-primary text-on-primary rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20 disabled:opacity-50"
                 >
                   Create Framework
                 </button>
@@ -579,7 +579,7 @@ export default function RiskPlaybook() {
             >
               <div className="p-8 border-b border-outline flex items-center justify-between bg-surface-container-low">
                 <div className="flex items-center gap-4 flex-1">
-                  <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-2xl bg-primary text-on-primary flex items-center justify-center shrink-0">
                     <Scale className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
@@ -843,7 +843,7 @@ export default function RiskPlaybook() {
                     </button>
                     <button 
                       onClick={saveChanges}
-                      className="flex-1 py-3 bg-primary text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20"
+                      className="flex-1 py-3 bg-primary text-on-primary rounded-2xl text-[11px] font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20"
                     >
                       Save Framework
                     </button>

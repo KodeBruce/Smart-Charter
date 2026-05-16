@@ -1,5 +1,6 @@
 import React from 'react';
-import { Search, Bell, HelpCircle } from 'lucide-react';
+import { Search, Bell, HelpCircle, Mic, MicOff } from 'lucide-react';
+import { useVoice } from '../contexts/VoiceContext';
 
 interface TopBarProps {
   title?: string;
@@ -8,8 +9,9 @@ interface TopBarProps {
 }
 
 export default function TopBar({ title, showSearch = true, actions }: TopBarProps) {
+  const { isListening, toggleVoice } = useVoice();
   return (
-    <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-outline bg-white px-8">
+    <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-outline bg-surface px-8">
       <div className="flex flex-1 items-center gap-6">
         {title && <h2 className="text-sm font-bold text-primary tracking-tight uppercase whitespace-nowrap">{title}</h2>}
         {showSearch && (
@@ -18,7 +20,7 @@ export default function TopBar({ title, showSearch = true, actions }: TopBarProp
             <input
               type="text"
               placeholder="Search files..."
-              className="w-full bg-surface-container-low border border-transparent rounded py-1.5 pl-10 pr-4 text-[11px] font-semibold focus:ring-1 focus:ring-primary focus:bg-white focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/30"
+              className="w-full bg-surface-container-low border border-transparent rounded py-1.5 pl-10 pr-4 text-[11px] font-semibold focus:ring-1 focus:ring-primary focus:bg-surface focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/30"
             />
           </div>
         )}
@@ -27,6 +29,13 @@ export default function TopBar({ title, showSearch = true, actions }: TopBarProp
       <div className="flex items-center gap-4">
         {actions}
         <div className="flex items-center gap-2">
+          <button 
+            onClick={toggleVoice}
+            className={`p-2 transition-all ${isListening ? 'text-primary scale-110 shadow-lg shadow-primary/10' : 'text-on-surface-variant/40 hover:text-primary'}`}
+            title="Toggle Voice Commands"
+          >
+            {isListening ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+          </button>
           <button className="p-2 text-on-surface-variant/40 hover:text-primary transition-all">
             <Bell className="h-4 w-4" />
           </button>

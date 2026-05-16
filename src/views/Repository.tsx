@@ -139,6 +139,20 @@ export default function Repository() {
     navigate('/compare', { state: { contracts: selectedContracts } });
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} documents? This action cannot be undone.`)) return;
+    
+    try {
+      const deletePromises = selectedIds.map(id => deleteDoc(doc(db, 'contracts', id)));
+      await Promise.all(deletePromises);
+      setSelectedIds([]);
+    } catch (error: any) {
+      alert("Failed to delete some documents. You may not have permission.");
+      handleFirestoreError(error, OperationType.DELETE, `bulk_contracts`);
+    }
+  };
+
   const [groupBy, setGroupBy] = useState<'none' | 'category' | 'year'>('none');
   const [expiryFilter, setExpiryFilter] = useState<'all' | '30d' | '90d' | 'expired'>('all');
   const [activeSource, setActiveSource] = useState<'all' | 'Vault' | 'Hub'>('all');
@@ -264,7 +278,7 @@ export default function Repository() {
               placeholder="Search documents..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-10 py-1 bg-surface-container border border-outline rounded-lg text-[9px] font-bold outline-none focus:ring-1 focus:ring-secondary w-64 transition-all"
+              className="pl-8 pr-10 py-1 bg-surface-container dark:bg-surface-container-high border border-outline dark:border-outline/20 rounded-lg text-[9px] font-bold outline-none focus:ring-1 focus:ring-secondary w-64 transition-all"
             />
           </div>
           <div className="flex bg-surface-container border border-outline rounded-lg p-0.5">
@@ -307,10 +321,22 @@ export default function Repository() {
               initial={{ x: -10, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               onClick={handleCompare}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-[8px] font-bold uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-[8px] font-bold uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
             >
               <Files className="h-3 w-3" />
               Compare ({selectedIds.length})
+            </motion.button>
+          )}
+
+          {selectedIds.length > 0 && (
+            <motion.button 
+              initial={{ x: -10, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-error text-white rounded-lg text-[8px] font-bold uppercase tracking-widest shadow-lg shadow-error/20 hover:scale-105 active:scale-95 transition-all"
+            >
+              <Trash2 className="h-3 w-3" />
+              Delete Selected ({selectedIds.length})
             </motion.button>
           )}
         </div>
@@ -318,7 +344,7 @@ export default function Repository() {
         <div className="flex items-center gap-2">
           <button 
             onClick={() => setIsIngestOpen(true)}
-            className="bg-[#E2FF6F] text-black px-4 py-1.5 rounded-lg flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all text-[8px] font-extrabold uppercase tracking-widest shadow-lg shadow-[#E2FF6F]/10"
+            className="bg-[#E2FF6F] text-black px-4 py-1.5 rounded-lg flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all text-[8px] font-extrabold uppercase tracking-widest shadow-lg shadow-[#E2FF6F]/10 dark:shadow-[#E2FF6F]/5"
           >
             <Plus className="h-3 w-3 stroke-[2.5]" />
             Upload Contract
@@ -386,7 +412,7 @@ export default function Repository() {
         </div>
 
         {/* Repository Table */}
-        <div className="bg-surface-container-low rounded-[24px] border border-outline overflow-hidden shadow-sm">
+        <div className="bg-surface-container-low rounded-[24px] border border-outline shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container/30">
@@ -405,6 +431,7 @@ export default function Repository() {
                 </th>
                 <th className="px-1 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80">Document Name</th>
                 <th className="px-5 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80">Workspace</th>
+                <th className="px-5 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80">Source</th>
                 <th className="px-5 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80">Category</th>
                 <th className="px-5 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80">Started</th>
                 <th className="px-5 py-3 text-[8px] font-bold uppercase tracking-widest text-on-surface-variant/80 text-right">Value</th>
@@ -419,7 +446,7 @@ export default function Repository() {
                 <tr 
                   key={`repo-row-${item.id}`} 
                   onClick={() => navigate('/contract/' + item.id)}
-                  className={`hover:bg-surface-container transition-all group cursor-pointer ${(selectedIds || []).includes(item.id) ? 'bg-surface-container-high' : ''}`}
+                  className={`hover:bg-surface-container dark:hover:bg-surface-container-high transition-all group cursor-pointer ${(selectedIds || []).includes(item.id) ? 'bg-surface-container-high dark:bg-surface-container-highest' : ''}`}
                 >
                   <td className="px-5 py-3">
                     <div 
@@ -436,7 +463,7 @@ export default function Repository() {
                   </td>
                   <td className="px-1 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-sm ${item.source === 'Hub' ? 'bg-secondary/10 text-secondary' : 'bg-surface-container text-primary'} group-hover:bg-primary group-hover:text-white`}>
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-sm ${item.source === 'Hub' ? 'bg-secondary/10 text-secondary' : 'bg-surface-container text-primary'} group-hover:bg-primary group-hover:text-on-primary`}>
                         {item.source === 'Hub' ? <Sparkles className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
                       </div>
                       <div>
@@ -511,7 +538,7 @@ export default function Repository() {
                               initial={{ opacity: 0, scale: 0.9, y: -10 }}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
                               exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                              className="absolute right-0 top-full mt-2 w-48 bg-surface border border-outline rounded-2xl shadow-2xl z-20 py-2 p-2"
+                              className="absolute right-0 top-full mt-1 w-48 bg-surface dark:bg-surface-container border border-outline dark:border-outline/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-[100] py-2 p-2"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <button 
@@ -559,7 +586,7 @@ export default function Repository() {
               <button className="w-7 h-7 flex items-center justify-center rounded-lg border border-outline hover:bg-surface-container transition-all">
                 <ChevronLeft className="h-3 w-3 text-on-surface/40" />
               </button>
-              <button className="w-7 h-7 flex items-center justify-center rounded-lg bg-primary text-white text-[8px] font-bold shadow-lg">1</button>
+              <button className="w-7 h-7 flex items-center justify-center rounded-lg bg-primary text-on-primary text-[8px] font-bold shadow-lg">1</button>
               <button className="w-7 h-7 flex items-center justify-center rounded-lg border border-outline hover:bg-surface-container transition-all text-[8px] font-bold text-on-surface/40">2</button>
               <button className="w-7 h-7 flex items-center justify-center rounded-lg border border-outline hover:bg-surface-container transition-all text-[8px] font-bold text-on-surface/40">3</button>
               <button className="w-7 h-7 flex items-center justify-center rounded-lg border border-outline hover:bg-surface-container transition-all">
@@ -585,7 +612,7 @@ export default function Repository() {
               <button 
                 onClick={handleRunAudit}
                 disabled={isAuditing}
-                className="mt-6 bg-white/5 hover:bg-white/10 transition-all text-white px-6 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border border-white/10 flex items-center gap-2 disabled:opacity-50"
+                className="mt-6 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 transition-all text-white px-6 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border border-white/10 flex items-center gap-2 disabled:opacity-50"
               >
                 {isAuditing ? 'Auditing...' : 'Run Portfolio Audit'}
                 <ArrowUpRight className="h-3.5 w-3.5" />
@@ -611,14 +638,14 @@ export default function Repository() {
             <div className="mt-8 pt-8 border-t border-outline flex items-center gap-3">
               <button 
                 onClick={handleExportCSV}
-                className="flex-1 py-2.5 bg-surface border border-outline rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-surface-container transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-surface dark:bg-surface-container-high border border-outline dark:border-outline/20 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-surface-container dark:hover:bg-surface-container-highest transition-all flex items-center justify-center gap-2"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export CSV
               </button>
               <button 
                 onClick={() => navigate('/repository')}
-                className="flex-1 py-2.5 bg-surface border border-outline rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-surface-container transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-surface dark:bg-surface-container-high border border-outline dark:border-outline/20 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-surface-container dark:hover:bg-surface-container-highest transition-all flex items-center justify-center gap-2"
               >
                 <Table className="h-3.5 w-3.5" />
                 Table View
@@ -642,7 +669,7 @@ export default function Repository() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface border border-outline rounded-[32px] p-8 w-full max-w-lg shadow-2xl"
+              className="bg-surface dark:bg-surface-container border border-outline dark:border-outline/20 rounded-[32px] p-8 w-full max-w-lg shadow-2xl"
             >
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -737,7 +764,7 @@ export default function Repository() {
 
                 <button 
                   onClick={handleUpdateContract}
-                  className="w-full py-4 bg-primary text-white rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all mt-4"
+                  className="w-full py-4 bg-primary text-on-primary rounded-2xl text-xs font-bold uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all mt-4"
                 >
                   Save Changes
                 </button>
