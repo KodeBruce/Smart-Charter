@@ -62,6 +62,8 @@ export default function ESign() {
     message: string;
     onConfirm: () => void;
     isDestructive?: boolean;
+    showCancel?: boolean;
+    confirmLabel?: string;
   }>({
     isOpen: false,
     title: '',
@@ -254,13 +256,14 @@ export default function ESign() {
       const signerIndex = selectedDoc.signers.findIndex(s => s.email === userEmail);
       
       if (signerIndex === -1) {
-        setConfirmModal({
-          isOpen: true,
-          title: 'Access Denied',
-          message: 'You are not listed as a signer for this document. Please contact the workspace owner.',
-          onConfirm: () => {},
-          showCancel: false
-        });
+          setConfirmModal({
+            isOpen: true,
+            title: 'Access Denied',
+            message: 'You are not listed as a signer for this document. Please contact the workspace owner.',
+            onConfirm: () => {},
+            showCancel: false,
+            confirmLabel: 'Understood'
+          });
         return;
       }
 
@@ -749,8 +752,8 @@ export default function ESign() {
         title={confirmModal.title}
         message={confirmModal.message}
         isDestructive={confirmModal.isDestructive}
-        showCancel={confirmModal.showCancel !== false}
-        confirmLabel={confirmModal.showCancel === false ? "Understood" : "Delete Request"}
+        showCancel={confirmModal.showCancel}
+        confirmLabel={confirmModal.confirmLabel}
       />
     </div>
   );
