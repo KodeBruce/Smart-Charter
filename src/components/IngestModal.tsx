@@ -203,7 +203,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                     <p className="text-[10px] font-black text-[#E2FF6F] uppercase tracking-[0.3em]">Processing Ingestion</p>
                   </div>
                   
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 relative">
+                  <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden border border-outline/10 relative">
                     <motion.div 
                       className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-[#E2FF6F] to-transparent shadow-[0_0_15px_rgba(226,255,111,0.3)] rounded-full"
                       animate={{ left: ['-50%', '150%'] }}
@@ -221,10 +221,10 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                       exit={{ opacity: 0, y: -10 }}
                       className="space-y-1"
                     >
-                      <p className="text-white text-[11px] font-bold uppercase tracking-[0.2em] italic">
+                      <p className="text-on-surface text-[11px] font-bold uppercase tracking-[0.2em] italic">
                         {LOADING_STAGES[loadingStage].label}
                       </p>
-                      <p className="text-white/30 text-[9px] font-medium uppercase tracking-widest leading-relaxed max-w-[280px] mx-auto">
+                      <p className="text-on-surface-variant/50 text-[9px] font-medium uppercase tracking-widest leading-relaxed max-w-[280px] mx-auto">
                         {LOADING_STAGES[loadingStage].detail}
                       </p>
                     </motion.div>
@@ -244,7 +244,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                   <motion.h4 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-white text-base font-black uppercase tracking-widest"
+                    className="text-on-surface text-base font-black uppercase tracking-widest"
                   >
                     Neural Indexing Complete
                   </motion.h4>
@@ -252,7 +252,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]"
+                    className="text-on-surface-variant/60 text-[10px] font-bold uppercase tracking-[0.2em]"
                   >
                     Document successfully secured in your vault
                   </motion.p>
@@ -261,7 +261,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
             ) : (
               <div className="space-y-5">
                 <div>
-                  <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Step 1 — Choose Analysis Mode</p>
+                  <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-on-surface/40 mb-3">Step 1 — Choose Analysis Mode</p>
                   <PlaybookSelector
                     selectedId={selectedPlaybook?.id || null}
                     onSelect={setSelectedPlaybook}
@@ -270,7 +270,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                 </div>
 
                 <div>
-                  <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Step 2 — Upload Document</p>
+                  <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-on-surface/40 mb-3">Step 2 — Upload Document</p>
                   <div
                     onClick={() => fileInputRef.current?.click()}
                     className="border-2 border-dashed border-white/10 rounded-2xl p-8 flex flex-col items-center gap-4 hover:border-[#E2FF6F]/30 hover:bg-[#E2FF6F]/5 transition-all cursor-pointer group"
@@ -279,8 +279,8 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                       <Upload className="h-6 w-6" />
                     </div>
                     <div className="text-center">
-                      <p className="text-white text-[11px] font-bold uppercase tracking-widest mb-1">Upload Document</p>
-                      <p className="text-white/30 text-[9px] font-medium uppercase tracking-[0.2em]">PDF, Word, or Text</p>
+                      <p className="text-on-surface text-[11px] font-bold uppercase tracking-widest mb-1">Upload Document</p>
+                      <p className="text-on-surface-variant/40 text-[9px] font-medium uppercase tracking-[0.2em]">PDF, Word, or Text</p>
                     </div>
                     <input
                       ref={fileInputRef}
@@ -302,11 +302,11 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                 )}
 
                 <div className="pt-4 border-t border-outline flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-on-surface/20">
+                  <div className="flex items-center gap-2 text-on-surface/40">
                     <CheckCircle2 className="h-3 w-3" />
                     <span className="text-[7.5px] font-bold uppercase tracking-widest">Automated Clause Identification</span>
                   </div>
-                  <div className="flex items-center gap-2 text-on-surface/20">
+                  <div className="flex items-center gap-2 text-on-surface/40">
                     <CheckCircle2 className="h-3 w-3" />
                     <span className="text-[7.5px] font-bold uppercase tracking-widest">Legal Review Validation</span>
                   </div>

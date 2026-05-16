@@ -9,6 +9,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import IngestModal from '../components/IngestModal';
+import TopBar from '../components/TopBar';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { ContractAnalysis } from '../services/geminiService';
 import { db, auth, OperationType, handleFirestoreError, toStandardDate, formatFirebaseDate } from '../lib/firebase';
 import { collection, onSnapshot, query, where, orderBy, setDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
@@ -30,6 +32,18 @@ export default function Repository() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   const [editingContract, setEditingContract] = useState<any | null>(null);
   const [editedFields, setEditedFields] = useState({
     name: '',
@@ -40,16 +54,22 @@ export default function Repository() {
     content: ''
   });
 
-  const handleDeleteContract = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteContract = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this document?')) return;
-    try {
-      await deleteDoc(doc(db, 'contracts', id));
-      setActiveMenuId(null);
-    } catch (error: any) {
-      alert("Failed to delete document. You may not have permission.");
-      handleFirestoreError(error, OperationType.DELETE, `contracts/${id}`);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Document',
+      message: 'Are you sure you want to delete this document? This action cannot be undone.',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'contracts', id));
+          setActiveMenuId(null);
+        } catch (error: any) {
+          handleFirestoreError(error, OperationType.DELETE, `contracts/${id}`);
+        }
+      }
+    });
   };
 
   const handleUpdateContract = async () => {
@@ -139,18 +159,22 @@ export default function Repository() {
     navigate('/compare', { state: { contracts: selectedContracts } });
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} documents? This action cannot be undone.`)) return;
-    
-    try {
-      const deletePromises = selectedIds.map(id => deleteDoc(doc(db, 'contracts', id)));
-      await Promise.all(deletePromises);
-      setSelectedIds([]);
-    } catch (error: any) {
-      alert("Failed to delete some documents. You may not have permission.");
-      handleFirestoreError(error, OperationType.DELETE, `bulk_contracts`);
-    }
+  const handleBulkDelete = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Bulk Delete',
+      message: `Are you sure you want to delete ${selectedIds.length} documents? This action will remove all selected files permanently.`,
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const promises = selectedIds.map(id => deleteDoc(doc(db, 'contracts', id)));
+          await Promise.all(promises);
+          setSelectedIds([]);
+        } catch (error: any) {
+          handleFirestoreError(error, OperationType.DELETE, `bulk_contracts`);
+        }
+      }
+    });
   };
 
   const [groupBy, setGroupBy] = useState<'none' | 'category' | 'year'>('none');
@@ -203,14 +227,14 @@ export default function Repository() {
   }, 0);
 
   const avgRisk = allContracts.length > 0 
-    ? Math.round(allContracts.reduce((acc, curr) => acc + (curr.overallRiskScore || 0), 0) / allContracts.length)
+    ? Math.min(100, Math.round(allContracts.reduce((acc, curr) => acc + (Math.min(100, curr.overallRiskScore || 0)), 0) / allContracts.length))
     : 0;
 
   const currentStats = [
-    { label: 'Total Value', value: `$${(totalValue / 1000000).toFixed(1)}M`, icon: Banknote, color: 'text-secondary-content' },
-    { label: 'Active Documents', value: allContracts.length.toString(), icon: Files, color: 'text-secondary-content' },
+    { label: 'Total Value', value: `$${(totalValue / 1000000).toFixed(1)}M`, icon: Banknote, color: 'text-primary' },
+    { label: 'Active Documents', value: allContracts.length.toString(), icon: Files, color: 'text-primary' },
     { label: 'Expiring 30d', value: allContracts.filter(c => getDaysRemaining(c.expiry) <= 30).length.toString(), icon: CalendarClock, color: 'text-error' },
-    { label: 'Average Risk', value: `${avgRisk}%`, icon: Gauge, color: 'text-blue-500' },
+    { label: 'Average Risk', value: `${avgRisk}%`, icon: Gauge, color: 'text-secondary' },
   ];
 
   const [isAuditing, setIsAuditing] = useState(false);
@@ -268,101 +292,92 @@ export default function Repository() {
 
   return (
     <div className="flex flex-col h-full bg-surface overflow-hidden">
-      {/* Search & Action Bar */}
-      <div className="px-5 py-2 border-b border-outline flex items-center justify-between bg-surface/50 backdrop-blur-sm z-20">
-        <div className="flex items-center gap-2.5">
-          <div className="relative group">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-on-surface/40" />
-            <input 
-              type="text" 
-              placeholder="Search documents..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-10 py-1 bg-surface-container dark:bg-surface-container-high border border-outline dark:border-outline/20 rounded-lg text-[9px] font-bold outline-none focus:ring-1 focus:ring-secondary w-64 transition-all"
-            />
+      <TopBar 
+        title="Intelligence Portfolio" 
+        actions={
+          <div className="flex items-center gap-3">
+             {selectedIds.length > 0 && (
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2">
+                <button 
+                  onClick={handleBulkDelete}
+                  className="px-4 py-1.5 bg-error/10 text-error border border-error/20 rounded text-[9px] font-bold uppercase tracking-widest hover:bg-error/20 transition-all"
+                >
+                  Delete ({selectedIds.length})
+                </button>
+                <button 
+                  onClick={handleCompare}
+                  className="px-4 py-1.5 bg-primary text-on-primary rounded text-[9px] font-bold uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 transition-all"
+                >
+                  Compare
+                </button>
+              </motion.div>
+            )}
+            <button 
+              onClick={() => setIsIngestOpen(true)}
+              className="px-4 py-1.5 bg-[#E2FF6F] text-black rounded text-[9px] font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+            >
+              <Plus className="h-3 w-3 mr-1 inline" />
+              Upload
+            </button>
           </div>
-          <div className="flex bg-surface-container border border-outline rounded-lg p-0.5">
-            <button 
-              onClick={() => setGroupBy('none')}
-              className={`px-2 py-1 text-[7px] font-bold uppercase tracking-widest rounded-md transition-all ${groupBy === 'none' ? 'bg-surface text-primary shadow-sm' : 'text-on-surface/40'}`}
-            >
-              All
-            </button>
-            <button 
-              onClick={() => setGroupBy('category')}
-              className={`px-2 py-1 text-[7px] font-bold uppercase tracking-widest rounded-md transition-all ${groupBy === 'category' ? 'bg-surface text-primary shadow-sm' : 'text-on-surface/40'}`}
-            >
-              By Category
-            </button>
-            <button 
-              onClick={() => setGroupBy('year')}
-              className={`px-2 py-1 text-[7px] font-bold uppercase tracking-widest rounded-md transition-all ${groupBy === 'year' ? 'bg-surface text-primary shadow-sm' : 'text-on-surface/40'}`}
-            >
-              By Expiry Year
-            </button>
+        }
+      />
+
+      {/* Sub-Header Filters */}
+      <div className="px-8 py-3 border-b border-outline/5 flex items-center justify-between bg-surface-container-lowest/30 backdrop-blur-md">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-on-surface/30">View:</span>
+            <div className="flex bg-surface-container border border-outline/10 rounded p-0.5">
+              {[
+                { id: 'none', label: 'All' },
+                { id: 'category', label: 'By Category' },
+                { id: 'year', label: 'By Year' }
+              ].map(opt => (
+                <button 
+                  key={opt.id}
+                  onClick={() => setGroupBy(opt.id as any)}
+                  className={`px-3 py-1 text-[8px] font-bold uppercase tracking-widest rounded transition-all ${groupBy === opt.id ? 'bg-surface text-primary shadow-sm' : 'text-on-surface/40 hover:text-on-surface/60'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex bg-surface-container border border-outline rounded-lg p-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-on-surface/30">Filter:</span>
             <select
               value={expiryFilter}
               onChange={(e) => setExpiryFilter(e.target.value as any)}
-              className="bg-transparent text-[7px] font-bold uppercase tracking-widest px-2 py-1 outline-none text-primary/60 cursor-pointer"
+              className="bg-surface-container border border-outline/10 text-[8px] font-bold uppercase tracking-widest px-3 py-1.5 rounded outline-none text-primary cursor-pointer"
             >
-              <option value="all">All Status</option>
-              <option value="30d">In 30 Days</option>
-              <option value="90d">In 90 Days</option>
+              <option value="all">Status: All</option>
+              <option value="30d">Due 30 Days</option>
+              <option value="90d">Due 90 Days</option>
               <option value="expired">Expired</option>
             </select>
           </div>
-          
-          {/* Compare Button */}
-          {selectedIds.length > 1 && (
-            <motion.button 
-              initial={{ x: -10, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              onClick={handleCompare}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-[8px] font-bold uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
-            >
-              <Files className="h-3 w-3" />
-              Compare ({selectedIds.length})
-            </motion.button>
-          )}
-
-          {selectedIds.length > 0 && (
-            <motion.button 
-              initial={{ x: -10, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              onClick={handleBulkDelete}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-error text-white rounded-lg text-[8px] font-bold uppercase tracking-widest shadow-lg shadow-error/20 hover:scale-105 active:scale-95 transition-all"
-            >
-              <Trash2 className="h-3 w-3" />
-              Delete Selected ({selectedIds.length})
-            </motion.button>
-          )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setIsIngestOpen(true)}
-            className="bg-[#E2FF6F] text-black px-4 py-1.5 rounded-lg flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all text-[8px] font-extrabold uppercase tracking-widest shadow-lg shadow-[#E2FF6F]/10 dark:shadow-[#E2FF6F]/5"
+        <div className="flex items-center gap-4">
+           <button 
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 text-[9px] font-bold text-on-surface/40 hover:text-primary transition-all uppercase tracking-widest"
           >
-            <Plus className="h-3 w-3 stroke-[2.5]" />
-            Upload Contract
-          </button>
-          <button className="p-2 rounded-lg border border-outline hover:bg-surface-container transition-all">
-            <Bell className="h-3.5 w-3.5 text-on-surface/60" />
+            <Download className="h-3 w-3" />
+            Export CSV
           </button>
         </div>
       </div>
-
       <div className="px-8 py-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
         <header className="flex flex-col gap-0.5">
-          <p className="text-[8px] font-bold text-primary/70 tracking-[0.4em] uppercase mb-1">Document Management</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/40 leading-none mb-2">Document Management</p>
           <div className="flex items-end justify-between">
-            <h1 className="text-xl font-bold text-primary tracking-tighter">Document Library</h1>
-            <div className="flex items-center gap-1.5 text-[8px] font-bold text-on-surface/70 uppercase tracking-widest">
-              <Calendar className="h-2.5 w-2.5" />
-              <span>May 13, 2026</span>
+            <h1 id="walkthrough-repository-view" className="text-2xl font-black text-primary tracking-tighter leading-none">Document Library</h1>
+            <div className="flex items-center gap-1.5 text-[9px] font-black text-on-surface/30 uppercase tracking-[0.2em]">
+              <Calendar className="h-3 w-3" />
+              <span>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}</span>
             </div>
           </div>
 
@@ -412,7 +427,7 @@ export default function Repository() {
         </div>
 
         {/* Repository Table */}
-        <div className="bg-surface-container-low rounded-[24px] border border-outline shadow-sm">
+        <div id="walkthrough-table" className="bg-surface-container-low rounded-[24px] border border-outline shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container/30">
@@ -659,6 +674,16 @@ export default function Repository() {
         isOpen={isIngestOpen} 
         onClose={() => setIsIngestOpen(false)} 
         onSuccess={handleIngestSuccess} 
+      />
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        isDestructive={confirmModal.isDestructive}
+        confirmLabel="Confirm Delete"
       />
 
       {/* Edit Modal */}

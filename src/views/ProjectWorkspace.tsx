@@ -9,6 +9,8 @@ import {
   MessageSquare, Files, Upload, MoreVertical, Trash2, Edit3, RefreshCw
 } from 'lucide-react';
 
+import ConfirmationModal from '../components/ConfirmationModal';
+
 import { db, auth, OperationType, handleFirestoreError, formatFirebaseDate } from '../lib/firebase';
 import { doc, onSnapshot, query, collection, where, setDoc, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore';
 import { generateText, analyzeContract } from '../services/geminiService';
@@ -104,6 +106,18 @@ export default function ProjectWorkspace() {
   const [newDocName, setNewDocName] = useState('');
   const [newDocType, setNewDocType] = useState('Agreement');
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Phase 5: Smart Starters
   const [smartStarters, setSmartStarters] = useState<string[]>([]);
@@ -361,16 +375,23 @@ A partner may withdraw from the partnership upon [NUMBER] days' notice, subject 
     }
   };
 
-  const handleDeleteProject = async () => {
-    if (!id || !confirm("Are you sure you want to delete this entire workspace and all associated documents?")) return;
-    try {
-      await deleteDoc(doc(db, 'projects', id));
-      navigate('/projects');
-    } catch (error: any) {
-      console.error("Delete failed:", error);
-      alert("Failed to delete workspace. You may not have permission if you are not the owner.");
-      handleFirestoreError(error, OperationType.DELETE, `projects/${id}`);
-    }
+  const handleDeleteProject = () => {
+    if (!id) return;
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Workspace',
+      message: 'Are you sure you want to delete this entire workspace and all associated documents? This action cannot be undone.',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'projects', id));
+          navigate('/projects');
+        } catch (error: any) {
+          console.error("Delete failed:", error);
+          handleFirestoreError(error, OperationType.DELETE, `projects/${id}`);
+        }
+      }
+    });
   };
 
   const handleFileDrop = async (e: React.DragEvent) => {
@@ -474,17 +495,22 @@ A partner may withdraw from the partnership upon [NUMBER] days' notice, subject 
     }
   };
 
-  const handleDeleteDoc = async (docId: string, e: React.MouseEvent) => {
+  const handleDeleteDoc = (docId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this document from the workspace?")) return;
-    
-    try {
-      await deleteDoc(doc(db, 'contracts', docId));
-      setActiveDocMenuId(null);
-    } catch (error: any) {
-      alert("Failed to delete document. You may not have permission.");
-      handleFirestoreError(error, OperationType.DELETE, `contracts/${docId}`);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Document',
+      message: 'Are you sure you want to delete this document from the workspace?',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'contracts', docId));
+          setActiveDocMenuId(null);
+        } catch (error: any) {
+          handleFirestoreError(error, OperationType.DELETE, `contracts/${docId}`);
+        }
+      }
+    });
   };
 
   const handleAddSigner = async () => {
@@ -1722,6 +1748,16 @@ A partner may withdraw from the partnership upon [NUMBER] days' notice, subject 
           </AnimatePresence>
         </main>
       </div>
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        isDestructive={confirmModal.isDestructive}
+        confirmLabel="Confirm Action"
+      />
     </div>
   );
 }

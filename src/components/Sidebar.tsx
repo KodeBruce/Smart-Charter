@@ -78,7 +78,7 @@ export default function Sidebar() {
           <button 
             onClick={toggleVoice}
             className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all group relative ${
-              isListening ? 'text-[#E2FF6F] bg-white/10 shadow-[0_0_15px_rgba(226,255,111,0.2)]' : 'text-white/50 hover:text-[#E2FF6F]'
+              isListening ? 'text-secondary bg-primary shadow-[0_0_15px_rgba(226,255,111,0.2)]' : 'text-on-surface/40 hover:text-secondary'
             }`}
             title="Toggle Voice Commands"
           >

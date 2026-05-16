@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronRight, ChevronLeft, Volume2, VolumeX, Sparkles, Check, Square, CheckSquare } from 'lucide-react';
 
@@ -9,6 +10,7 @@ interface Step {
   content: string;
   audioText: string;
   position: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  route?: string;
 }
 
 const steps: Step[] = [
@@ -16,7 +18,7 @@ const steps: Step[] = [
     id: 'welcome',
     title: 'Meet Smart Charter: Your Legal Intelligence Hub.',
     content: 'Smart Charter is a sophisticated legal intelligence platform designed to automate contract analysis and risk management. It uses advanced AI to identify risks, track obligations, and ensure compliance across your entire portfolio.',
-    audioText: 'Welcome to Smart Charter. I am your legal intelligence hub. This platform is a sophisticated engine designed to automate contract analysis and risk management. I will identify risks, track your obligations, and ensure compliance across your entire document portfolio.',
+    audioText: 'Welcome to Smart Charter. It’s a pleasure to assist you. I am your legal intelligence partner, a sophisticated engine designed to bring absolute clarity to your contract portfolio. Together, we will navigate risks and master your legal obligations with effortless precision.',
     position: 'center'
   },
   {
@@ -24,60 +26,68 @@ const steps: Step[] = [
     targetId: 'walkthrough-ingest',
     title: 'Upload. Analyze. Understand.',
     content: 'Drop in any contract — PDF, DOCX, or plain text. The AI engine extracts every clause, scores the risk level, identifies parties, and surfaces obligations in seconds.',
-    audioText: 'Drop in any contract. The AI engine will extract every clause, score the risk level, identify parties, and surface all obligations in seconds. No manual reading required.',
+    audioText: 'Simply upload any legal instrument. Our AI will instantly deconstruct the document, extracting vital clauses and scoring risks in real-time. It’s document intelligence, simplified.',
     position: 'right'
   },
   {
     id: 'dashboard',
-    targetId: 'walkthrough-dashboard',
+    targetId: 'walkthrough-dashboard-view',
     title: 'Your Portfolio Snapshot.',
     content: 'Your dashboard provides a high-level view of your contract health. Monitor critical risks, upcoming expiries, and overall portfolio stability at a glance.',
-    audioText: 'Your dashboard gives you a live snapshot of your contract portfolio health. You can monitor critical risks, upcoming expiries, and overall portfolio stability at a glance.',
-    position: 'right'
+    audioText: 'Your dashboard offers a refined, high-level perspective. Monitor the pulse of your portfolio, track critical expiries, and maintain perfect stability at a glance.',
+    position: 'right',
+    route: '/'
   },
   {
     id: 'projects',
-    targetId: 'walkthrough-projects',
+    targetId: 'walkthrough-projects-view',
     title: 'Project Workspaces.',
     content: 'Organize work into specific Projects for each deal or client. This keeps your intelligence segmented and focused on the relevant legal context.',
-    audioText: 'Organize your work into specific Projects for each deal or client. This keeps your intelligence segmented and focused on the relevant legal context.',
-    position: 'right'
+    audioText: 'Workspaces allow you to segment your intelligence by client or deal. It’s your organized sanctuary for focused legal analysis and strategic decision-making.',
+    position: 'right',
+    route: '/projects'
   },
   {
     id: 'redlining',
-    targetId: 'walkthrough-compare',
+    targetId: 'walkthrough-compare-library',
     title: 'Document Comparison.',
     content: 'Compare multiple versions of a contract side-by-side. Our AI highlights key differences in jurisdiction, value, and risk, helping you spot critical changes instantly.',
-    audioText: 'Use the comparison tool to view multiple versions of a contract side-by-side. Our AI highlights key differences in jurisdiction, value, and risk, helping you spot critical changes instantly.',
-    position: 'right'
+    audioText: 'Our comparison engine is truly transformative. View multiple iterations side-by-side as our AI elegantly highlights shifts in jurisdiction and risk, ensuring you never miss a nuance.',
+    position: 'right',
+    route: '/compare'
   },
   {
     id: 'risk-framework',
-    targetId: 'walkthrough-risk',
+    targetId: 'walkthrough-risk-view',
     title: 'AI Risk Playbooks.',
     content: 'Architect custom review frameworks with AI. Define your own risk thresholds and mandatory clauses to ensure every document meets your institutional standards.',
-    audioText: 'Architect custom review frameworks with AI. You can define your own risk thresholds and mandatory clauses to ensure every document meets your institutional standards.',
-    position: 'right'
+    audioText: 'Architect your own institutional standards with our AI Risk Playbooks. Define your bespoke thresholds and let the engine enforce your standards across every single agreement.',
+    position: 'right',
+    route: '/risk'
   },
   {
     id: 'repository',
-    targetId: 'walkthrough-repository',
+    targetId: 'walkthrough-dashboard-view',
     title: 'Intelligence Portfolio.',
     content: 'Your signed and active contracts are indexed here. The AI watches for expiry dates, counterparty changes, and regulatory shifts that could affect each agreement.',
-    audioText: 'Your signed and active contracts are indexed in the Intelligence Portfolio. The AI watches for expiry dates and regulatory shifts that could affect each of your agreements.',
-    position: 'right'
+    audioText: 'Your Intelligence Portfolio is a living archive. Our AI remains ever-vigilant, monitoring regulatory shifts and expiry windows to keep your agreements ahead of the curve.',
+    position: 'bottom',
+    route: '/'
   },
   {
     id: 'extraction',
-    targetId: 'walkthrough-extraction',
+    targetId: 'walkthrough-projects-view',
     title: 'Deep Clause Intelligence.',
-    content: 'Inside any contract, the Clauses tab shows every legal node with risk level, implications, and an AI Rewrite option to generate improved language instantly.',
-    audioText: 'Inside any contract, switch to the Clauses tab to browse every legal node. Each clause shows its risk level, implications, and an AI Rewrite option to generate improved language instantly. You are now ready to use Smart Charter.',
-    position: 'top'
+    content: 'Inside any project, you can drill down into individual contracts to see every legal node with risk level, implications, and AI Rewrite options.',
+    audioText: 'Deep within each project, you\'ll find absolute clause intelligence. Review implications, assess risks, and use our AI Rewrite to perfect your language. Welcome home to Smart Charter.',
+    position: 'top',
+    route: '/projects'
   }
 ];
 
 export default function Walkthrough() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState(-1);
   const [isVisible, setIsVisible] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -87,7 +97,7 @@ export default function Walkthrough() {
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const updateCoords = () => {
+  const updateCoords = (retries = 5) => {
     if (currentStep >= 0 && currentStep < steps.length) {
       const step = steps[currentStep];
       if (step.targetId) {
@@ -101,6 +111,8 @@ export default function Walkthrough() {
             height: rect.height
           });
           setTargetFound(true);
+        } else if (retries > 0) {
+          setTimeout(() => updateCoords(retries - 1), 200);
         } else {
           setTargetFound(false);
           setCoords({ top: 0, left: 0, width: 0, height: 0 });
@@ -115,10 +127,8 @@ export default function Walkthrough() {
   useEffect(() => {
     if (!isVisible) return;
     
-    // Initial update
     updateCoords();
 
-    // Resize observer for dynamic layout changes
     const observer = new ResizeObserver(() => {
       updateCoords();
     });
@@ -141,7 +151,6 @@ export default function Walkthrough() {
     };
     window.addEventListener('smart-charter-start-walkthrough', handler);
 
-    // Prompt user to start walkthrough on first visit
     const lastSession = localStorage.getItem('walkthrough-completed');
     if (!lastSession) {
       const timer = setTimeout(handler, 2000);
@@ -152,6 +161,16 @@ export default function Walkthrough() {
       window.removeEventListener('smart-charter-start-walkthrough', handler);
     };
   }, []);
+
+  useEffect(() => {
+    if (isVisible && currentStep >= 0 && currentStep < steps.length) {
+      const step = steps[currentStep];
+      if (step.route && location.pathname !== step.route) {
+        navigate(step.route);
+        setTimeout(updateCoords, 500);
+      }
+    }
+  }, [currentStep, isVisible, location.pathname, navigate]);
 
   useEffect(() => {
     if (!isVisible) return;
@@ -168,44 +187,34 @@ export default function Walkthrough() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, currentStep, dontShowAgainChecked]); // Include state dependencies for latest handlers
+  }, [isVisible, currentStep, dontShowAgainChecked]);
 
   useEffect(() => {
     if (currentStep >= 0 && currentStep < steps.length) {
       const step = steps[currentStep];
       
-      // Handle Speech
       if (!isMuted) {
         window.speechSynthesis.cancel();
         
-        // Small delay to ensure synthesis is ready
         const speakTimer = setTimeout(() => {
           const utterance = new SpeechSynthesisUtterance(step.audioText);
-          
-          // Get all voices
           const voices = window.speechSynthesis.getVoices();
-          
-          // Filter for English voices first
           const enVoices = voices.filter(v => v.lang.startsWith('en-'));
-          
-          // Professional Hierarchy: 
-          // 1. Specific premium "Natural" voices (Microsoft, Google, Apple)
-          // 2. High-quality female personas
-          // 3. Fallbacks
           const preferredVoice = enVoices.find(v => 
             (v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('neural') || v.name.toLowerCase().includes('online')) && 
-            (v.name.toLowerCase().includes('female') || v.name.includes('Aria') || v.name.includes('Jenny') || v.name.includes('Google US English'))
+            (v.name.includes('Aria') || v.name.includes('Jenny'))
           ) || enVoices.find(v => 
-            v.name.toLowerCase().includes('female') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Moira') || v.name.includes('Victoria')
+            v.name.includes('Google US English') || v.name.includes('Samantha') || v.name.includes('Victoria')
+          ) || enVoices.find(v => 
+            v.name.toLowerCase().includes('female')
           ) || enVoices.find(v => v.lang === 'en-US') || enVoices[0] || voices[0];
           
           if (preferredVoice) {
             utterance.voice = preferredVoice;
           }
 
-          // Professional tone adjustment
-          utterance.rate = 1.09; // Fine-tuned pace for optimal balance
-          utterance.pitch = 1.05; // Slightly higher for a more pleasant, helpful tone
+          utterance.rate = 1.02;
+          utterance.pitch = 1.0;
           speechRef.current = utterance;
           window.speechSynthesis.speak(utterance);
         }, 100);
@@ -217,20 +226,14 @@ export default function Walkthrough() {
     }
   }, [currentStep, isMuted]);
 
-  // Handle voices loading (they are async)
   useEffect(() => {
     const handleVoicesChanged = () => {
       window.speechSynthesis.getVoices();
     };
-    
-    // Initial call
     handleVoicesChanged();
-    
-    // Some browsers need this event
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
       window.speechSynthesis.onvoiceschanged = handleVoicesChanged;
     }
-
     return () => {
       if (window.speechSynthesis.onvoiceschanged !== undefined) {
         window.speechSynthesis.onvoiceschanged = null;
@@ -265,9 +268,54 @@ export default function Walkthrough() {
   const currentStepData = steps[currentStep];
   if (!currentStepData) return null;
 
+  const getTooltipStyle = () => {
+    if (currentStepData.position === 'center' || !targetFound) return { style: {}, isCentered: true };
+    const gap = 32;
+    const tooltipWidth = 380;
+    const tooltipHeight = 310;
+
+    const spaceRight = window.innerWidth - (coords.left + coords.width);
+    const spaceLeft = coords.left;
+    const spaceBottom = window.innerHeight - (coords.top + coords.height);
+    const spaceTop = coords.top;
+
+    let preferred = currentStepData.position;
+    const isTargetHuge = coords.width > window.innerWidth * 0.8 || coords.height > window.innerHeight * 0.8;
+    if (isTargetHuge) preferred = 'center';
+    
+    if (preferred === 'right' && spaceRight < tooltipWidth + gap && spaceLeft > spaceRight) preferred = 'left';
+    else if (preferred === 'left' && spaceLeft < tooltipWidth + gap && spaceRight > spaceLeft) preferred = 'right';
+    else if (preferred === 'bottom' && spaceBottom < tooltipHeight + gap && spaceTop > spaceBottom) preferred = 'top';
+    else if (preferred === 'top' && spaceTop < tooltipHeight + gap && spaceBottom > spaceTop) preferred = 'bottom';
+
+    if (preferred === 'center') return { style: {}, isCentered: true };
+
+    let top = 0;
+    let left = 0;
+
+    if (preferred === 'right') {
+      top = coords.top + (coords.height / 2) - (tooltipHeight / 2);
+      left = coords.left + coords.width + gap;
+    } else if (preferred === 'left') {
+      top = coords.top + (coords.height / 2) - (tooltipHeight / 2);
+      left = coords.left - tooltipWidth - gap;
+    } else if (preferred === 'bottom') {
+      top = coords.top + coords.height + gap;
+      left = coords.left + (coords.width / 2) - (tooltipWidth / 2);
+    } else if (preferred === 'top') {
+      top = coords.top - tooltipHeight - gap;
+      left = coords.left + (coords.width / 2) - (tooltipWidth / 2);
+    }
+
+    top = Math.max(20, Math.min(top, window.innerHeight - tooltipHeight - 20));
+    left = Math.max(20, Math.min(left, window.innerWidth - tooltipWidth - 20));
+    return { style: { top, left }, isCentered: false };
+  };
+
+  const { style: tooltipStyle, isCentered } = getTooltipStyle();
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden pointer-events-none">
-      {/* Dynamic Cutout Overlay */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         <defs>
           <mask id="walkthrough-mask">
@@ -299,7 +347,6 @@ export default function Walkthrough() {
         />
       </svg>
 
-      {/* Spotlight Border & Glow */}
       {currentStepData?.targetId && targetFound && (
         <motion.div 
           animate={{
@@ -313,7 +360,6 @@ export default function Walkthrough() {
         />
       )}
 
-      {/* Tooltip Card */}
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
@@ -322,41 +368,10 @@ export default function Walkthrough() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           className={`absolute pointer-events-auto w-[380px] bg-[#1A1A1A] border border-white/10 rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 z-[110]
-            ${currentStepData.position === 'center' || !targetFound ? 'relative' : ''}
+            ${isCentered ? 'relative' : ''}
           `}
-          style={(() => {
-            if (currentStepData.position === 'center' || !targetFound) return {};
-            
-            const gap = 24;
-            const tooltipWidth = 380;
-            const tooltipHeight = 310; // Approximated
-
-            
-            let top = 0;
-            let left = 0;
-
-            if (currentStepData.position === 'right') {
-              top = coords.top;
-              left = coords.left + coords.width + gap;
-            } else if (currentStepData.position === 'left') {
-              top = coords.top;
-              left = coords.left - tooltipWidth - gap;
-            } else if (currentStepData.position === 'bottom') {
-              top = coords.top + coords.height + gap;
-              left = coords.left + (coords.width / 2) - (tooltipWidth / 2);
-            } else if (currentStepData.position === 'top') {
-              top = coords.top - tooltipHeight - gap;
-              left = coords.left + (coords.width / 2) - (tooltipWidth / 2);
-            }
-
-            // Clamping
-            top = Math.max(20, Math.min(top, window.innerHeight - tooltipHeight - 20));
-            left = Math.max(20, Math.min(left, window.innerWidth - tooltipWidth - 20));
-
-            return { top, left };
-          })()}
+          style={tooltipStyle}
         >
-          {/* Step Sequence Bar */}
           <div className="flex items-center overflow-x-auto gap-0 bg-white/[0.03] border-b border-white/5 px-4 py-3">
             {steps.map((step, i) => (
               <React.Fragment key={`seq-${i}`}>

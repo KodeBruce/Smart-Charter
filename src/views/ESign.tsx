@@ -13,6 +13,7 @@ import DocumentViewer from '../components/DocumentViewer';
 import SignatureCanvas from 'react-signature-canvas';
 import { Sparkles } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 export interface AuditLogEntry {
   id: string;
@@ -55,6 +56,18 @@ export default function ESign() {
   const [localFileUrl, setLocalFileUrl] = useState<string | null>(null);
   const [localFileType, setLocalFileType] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'document' | 'audit'>('document');
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -241,7 +254,13 @@ export default function ESign() {
       const signerIndex = selectedDoc.signers.findIndex(s => s.email === userEmail);
       
       if (signerIndex === -1) {
-        alert("You are not listed as a signer for this document.");
+        setConfirmModal({
+          isOpen: true,
+          title: 'Access Denied',
+          message: 'You are not listed as a signer for this document. Please contact the workspace owner.',
+          onConfirm: () => {},
+          showCancel: false
+        });
         return;
       }
 
@@ -278,24 +297,30 @@ export default function ESign() {
     setSignatureData(sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png') || null);
   };
 
-  const handleDeleteDocument = async () => {
+  const handleDeleteDocument = () => {
     if (!selectedDoc) return;
-    if (!window.confirm("Are you sure you want to delete this document? This action cannot be undone.")) return;
-
-    try {
-      if (selectedDoc.fileUrl) {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Document',
+      message: 'Are you sure you want to delete this document? This action cannot be undone.',
+      isDestructive: true,
+      onConfirm: async () => {
         try {
-          const fileRef = ref(storage, selectedDoc.fileUrl);
-          await deleteObject(fileRef);
-        } catch (storageError) {
-          console.error("Failed to delete file from storage:", storageError);
+          if (selectedDoc.fileUrl) {
+            try {
+              const fileRef = ref(storage, selectedDoc.fileUrl);
+              await deleteObject(fileRef);
+            } catch (storageError) {
+              console.error("Failed to delete file from storage:", storageError);
+            }
+          }
+          await deleteDoc(doc(db, 'esign_documents', selectedDoc.id));
+          setSelectedDoc(null);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, `esign_documents/${selectedDoc.id}`);
         }
       }
-      await deleteDoc(doc(db, 'esign_documents', selectedDoc.id));
-      setSelectedDoc(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `esign_documents/${selectedDoc.id}`);
-    }
+    });
   };
 
   return (
@@ -716,6 +741,17 @@ export default function ESign() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        isDestructive={confirmModal.isDestructive}
+        showCancel={confirmModal.showCancel !== false}
+        confirmLabel={confirmModal.showCancel === false ? "Understood" : "Delete Request"}
+      />
     </div>
   );
 }

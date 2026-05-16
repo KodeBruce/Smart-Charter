@@ -27,12 +27,12 @@ export default function VoiceController() {
     // Navigation Commands
     if (cmd.includes('dashboard') || cmd.includes('home')) {
       navigate('/');
-    } else if (cmd.includes('repository') || cmd.includes('portfolio') || cmd.includes('library')) {
-      navigate('/repository');
+    } else if (cmd.includes('projects') || cmd.includes('portfolio') || cmd.includes('library')) {
+      navigate('/projects');
     } else if (cmd.includes('compare') || cmd.includes('comparison')) {
       navigate('/compare');
     } else if (cmd.includes('risk') || cmd.includes('playbook')) {
-      navigate('/risk-playbook');
+      navigate('/risk');
     } else if (cmd.includes('strategic') || cmd.includes('hub')) {
       navigate('/strategic-hub');
     }
@@ -143,7 +143,7 @@ export default function VoiceController() {
             </div>
             
             <p className="text-[8px] font-bold text-on-surface/30 uppercase tracking-widest">
-              Try "Go to Dashboard" or "Open Repository"
+              Try "Go to Dashboard" or "Go to Projects"
             </p>
           </motion.div>
         )}

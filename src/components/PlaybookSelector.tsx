@@ -159,25 +159,25 @@ export function PlaybookSelector({ selectedId, onSelect, compact = false }: Play
           onClick={() => setIsExpanded(v => !v)}
           className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${
             selected
-              ? 'bg-[#E2FF6F]/10 border-[#E2FF6F]/30 text-white'
-              : 'bg-white/5 border-white/10 text-white/50 hover:border-white/20 hover:text-white/70'
+              ? 'bg-[#E2FF6F]/10 border-[#E2FF6F]/30 text-on-surface'
+              : 'bg-surface-container border-outline text-on-surface-variant/50 hover:border-primary/20 hover:text-on-surface'
           }`}
         >
           <div className="flex items-center gap-3">
             {selected ? (
               <>
-                <selected.icon className="h-4 w-4 text-white" />
+                <selected.icon className="h-4 w-4 text-primary" />
                 <div className="text-left">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#E2FF6F]">Playbook Active</p>
-                  <p className="text-[12px] font-bold text-white">{selected.name}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">Playbook Active</p>
+                  <p className="text-[12px] font-bold text-on-surface">{selected.name}</p>
                 </div>
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 text-white/30" />
+                <Sparkles className="h-4 w-4 text-on-surface-variant/30" />
                 <div className="text-left">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Optional</p>
-                  <p className="text-[11px] font-bold">Select Analysis Playbook</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/30">Optional</p>
+                  <p className="text-[11px] font-bold text-on-surface">Select Analysis Playbook</p>
                 </div>
               </>
             )}
@@ -197,7 +197,7 @@ export function PlaybookSelector({ selectedId, onSelect, compact = false }: Play
                 {selected && (
                   <button
                     onClick={() => { onSelect(null); setIsExpanded(false); }}
-                    className="w-full text-left px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white/60 transition-all flex items-center gap-2"
+                    className="w-full text-left px-4 py-2.5 rounded-xl bg-surface-container border border-outline text-[9px] font-black uppercase tracking-widest text-on-surface/40 hover:text-on-surface/60 transition-all flex items-center gap-2"
                   >
                     <X className="h-3 w-3" /> Clear Playbook (Generic Analysis)
                   </button>
@@ -209,13 +209,13 @@ export function PlaybookSelector({ selectedId, onSelect, compact = false }: Play
                     className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center gap-3 ${
                       selectedId === p.id
                         ? 'bg-[#E2FF6F]/10 border-[#E2FF6F]/30'
-                        : 'bg-white/5 border-white/10 hover:border-white/20'
+                        : 'bg-surface-container border-outline hover:border-primary/20'
                     }`}
                   >
-                    <p.icon className="h-4 w-4 shrink-0 text-white" />
+                    <p.icon className="h-4 w-4 shrink-0 text-primary" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold text-white truncate">{p.name}</p>
-                      <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">{p.jurisdiction}</p>
+                      <p className="text-[11px] font-bold text-on-surface truncate">{p.name}</p>
+                      <p className="text-[8px] font-bold text-on-surface-variant/40 uppercase tracking-widest">{p.jurisdiction}</p>
                     </div>
                     {selectedId === p.id && <CheckCircle2 className="h-3.5 w-3.5 text-[#E2FF6F] shrink-0" />}
                   </button>

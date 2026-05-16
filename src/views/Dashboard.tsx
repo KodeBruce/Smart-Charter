@@ -6,10 +6,12 @@ import {
   Search, Bell, AlertTriangle, AlertCircle, CheckCircle2,
   Plus, Sparkles, Filter, DollarSign, 
   TrendingUp, Eye, MoreHorizontal, X, Trash2, CheckSquare, Square,
-  Loader2
+  Loader2, ChevronRight, FilePlus
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import IngestModal from '../components/IngestModal';
+import TopBar from '../components/TopBar';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { ContractAnalysis } from '../services/geminiService';
 import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
 import { collection, onSnapshot, query, where, orderBy, deleteDoc, doc, writeBatch } from 'firebase/firestore';
@@ -39,6 +41,18 @@ export default function Dashboard() {
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
@@ -129,33 +143,47 @@ export default function Dashboard() {
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) return;
-    
-    try {
-      await deleteDoc(doc(db, 'contracts', id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `contracts/${id}`);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Document',
+      message: 'Are you sure you want to delete this document? This action cannot be undone.',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'contracts', id));
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, `contracts/${id}`);
+        }
+      }
+    });
   };
 
-  const handleBulkDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete ${selectedDocs.size} documents?`)) return;
-    
-    setIsDeleting(true);
-    try {
-      const batch = writeBatch(db);
-      selectedDocs.forEach(id => {
-        batch.delete(doc(db, 'contracts', id));
-      });
-      await batch.commit();
-      setSelectedDocs(new Set());
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'contracts/bulk');
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleBulkDelete = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Bulk Delete',
+      message: `Are you sure you want to delete ${selectedDocs.size} documents? This action will remove all selected files permanently.`,
+      isDestructive: true,
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          const batch = writeBatch(db);
+          selectedDocs.forEach(id => {
+            batch.delete(doc(db, 'contracts', id));
+          });
+          await batch.commit();
+          setSelectedDocs(new Set());
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, 'contracts/bulk');
+        } finally {
+          setIsDeleting(false);
+        }
+      }
+    });
   };
 
   const stats = [
@@ -173,7 +201,7 @@ export default function Dashboard() {
     },
     { 
       label: 'Avg. Risk Score', 
-      value: contracts.length ? `${Math.round(contracts.reduce((s, c) => s + (c.riskScore || 50), 0) / contracts.length)}%` : '—',
+      value: contracts.length ? `${Math.min(100, Math.round(contracts.reduce((s, c) => s + (Math.min(100, c.riskScore || 50)), 0) / contracts.length))}%` : '—',
       sub: 'Portfolio health', icon: TrendingUp, color: 'text-success', bg: 'bg-success/8'
     },
   ];
@@ -194,44 +222,36 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col h-full bg-surface overflow-hidden">
-      {/* Top Bar */}
-      <div className="px-6 py-2.5 border-b border-outline/20 flex items-center justify-between bg-surface/80 backdrop-blur-sm z-20">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container rounded-lg border border-outline/20 text-[9px] font-bold text-on-surface/70">
-            <Activity className="h-3 w-3 text-success" />
-            <span>Active: {contracts.length}</span>
+      <TopBar 
+        title="Intelligence Dashboard"
+        actions={
+          <div className="flex items-center gap-3">
+             <div className="flex bg-surface-container border border-outline/20 rounded p-0.5">
+              {[
+                { id: 'All', label: 'All' },
+                { id: 'High Risk', label: 'High' },
+                { id: 'Medium Risk', label: 'Med' },
+                { id: 'Unassigned', label: 'Unassigned' }
+              ].map(opt => (
+                <button 
+                  key={opt.id}
+                  onClick={() => setActiveFilter(opt.id as any)}
+                  className={`px-3 py-1 text-[8px] font-bold uppercase tracking-widest rounded transition-all ${activeFilter === opt.id ? 'bg-surface text-primary shadow-sm' : 'text-on-surface/40 hover:text-on-surface/60'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <button 
+              onClick={() => setIsIngestOpen(true)}
+              className="px-4 py-1.5 bg-[#E2FF6F] text-black rounded text-[9px] font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+            >
+              <Plus className="h-3 w-3 mr-1 inline" />
+              Upload
+            </button>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container rounded-lg border border-outline/20 text-[9px] font-bold text-on-surface/70">
-            <Shield className="h-3 w-3 text-error" />
-            <span>Risk: {contracts.filter(r => r.riskLevel === 'High Risk').length > 0 ? 'Elevated' : 'Minimal'}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <button 
-            onClick={() => setIsIngestOpen(true)}
-            className="bg-primary text-on-primary px-4 py-1.5 rounded-lg flex items-center gap-1.5 hover:-translate-y-px active:translate-y-0 transition-all text-[9px] font-bold shadow-lg shadow-primary/20"
-          >
-            <Plus className="h-3.5 w-3.5 stroke-[2]" />
-            Upload Contract
-          </button>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-on-surface/40" />
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search documents..."
-              className="pl-9 pr-3 py-1.5 bg-surface-container border border-outline/20 rounded-lg text-[10px] font-medium outline-none focus:ring-1 focus:ring-primary/40 w-48 transition-all text-on-surface placeholder:text-on-surface/40"
-            />
-          </div>
-          <button className="p-1.5 rounded-lg border border-outline/20 hover:bg-surface-container transition-all relative">
-            <Bell className="h-4 w-4 text-on-surface/60" />
-            {contracts.filter(r => r.riskLevel === 'High Risk').length > 0 && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-error rounded-full" />
-            )}
-          </button>
-        </div>
-      </div>
+        }
+      />
 
 
 
@@ -250,7 +270,7 @@ export default function Dashboard() {
         </header>
 
         {/* Stats Strip - Line Style */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-x-12 gap-y-8 pt-6 pb-12 border-b border-outline/10">
+        <section id="walkthrough-dashboard-view" className="grid grid-cols-2 lg:grid-cols-4 gap-x-12 gap-y-8 pt-6 pb-12 border-b border-outline/10">
           {stats.map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -583,6 +603,16 @@ export default function Dashboard() {
         isOpen={isIngestOpen} 
         onClose={() => setIsIngestOpen(false)} 
         onSuccess={handleIngestSuccess} 
+      />
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        isDestructive={confirmModal.isDestructive}
+        confirmLabel="Confirm Delete"
       />
     </div>
   );

@@ -4,10 +4,11 @@ import {
   Shield, AlertTriangle, CheckCircle2, 
   ChevronRight, BookOpen, Clock, X, Maximize2, Minimize2,
   Search, Info, Zap, Scale, FileWarning,
-  Sparkles, Loader2
+  Sparkles, Loader2, Calendar
 } from 'lucide-react';
 import { generateJson } from '../services/geminiService';
 import { SchemaType } from "@google/generative-ai";
+import TopBar from '../components/TopBar';
 
 interface AuditLog {
   id: string;
@@ -282,27 +283,34 @@ export default function RiskPlaybook() {
 
   return (
     <div className="flex flex-col h-full bg-surface overflow-hidden relative">
+      <TopBar 
+        title="Review Framework"
+        actions={
+          <div className="flex items-center gap-3">
+             <button 
+                onClick={() => setIsAiModalOpen(true)}
+                className="px-4 py-1.5 bg-primary text-on-primary rounded text-[9px] font-bold uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+              >
+                <Sparkles className="h-3 w-3 mr-1 inline" />
+                AI Generate
+              </button>
+          </div>
+        }
+      />
+
       <div className="px-8 py-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
         <header className="flex flex-col gap-0.5">
-          <p className="text-[8px] font-bold text-primary/70 tracking-[0.4em] uppercase leading-none mb-1">Review Framework</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/40 leading-none mb-2">Review Framework</p>
           <div className="flex items-end justify-between">
-            <h1 className="text-xl font-bold text-primary tracking-tighter leading-none">Review Playbooks</h1>
-            <div className="flex items-center gap-2">
-               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-on-surface/40" />
-                <input 
-                  type="text" 
-                  placeholder="Filter frameworks..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-4 py-1.5 bg-surface-container-low border border-outline rounded-lg text-[10px] font-bold outline-none focus:ring-1 focus:ring-secondary w-48 transition-all"
-                />
-              </div>
+            <h1 className="text-2xl font-black text-primary tracking-tighter leading-none">Review Playbooks</h1>
+            <div className="flex items-center gap-1.5 text-[9px] font-black text-on-surface/30 uppercase tracking-[0.2em]">
+              <Calendar className="h-3 w-3" />
+              <span>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}</span>
             </div>
           </div>
         </header>
 
-        <section id="walkthrough-risk" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <section id="walkthrough-risk-view" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPlaybooks.map((playbook, i) => (
             <motion.div
               key={playbook.id}

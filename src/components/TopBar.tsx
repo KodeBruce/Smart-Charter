@@ -1,6 +1,7 @@
 import React from 'react';
-import { Search, Bell, HelpCircle, Mic, MicOff } from 'lucide-react';
+import { Search, Bell, HelpCircle, Mic, MicOff, User } from 'lucide-react';
 import { useVoice } from '../contexts/VoiceContext';
+import { auth } from '../lib/firebase';
 
 interface TopBarProps {
   title?: string;
@@ -10,6 +11,8 @@ interface TopBarProps {
 
 export default function TopBar({ title, showSearch = true, actions }: TopBarProps) {
   const { isListening, toggleVoice } = useVoice();
+  const currentUser = auth.currentUser;
+
   return (
     <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-outline bg-surface px-8">
       <div className="flex flex-1 items-center gap-6">
@@ -42,15 +45,23 @@ export default function TopBar({ title, showSearch = true, actions }: TopBarProp
           <div className="h-4 w-px bg-outline mx-2" />
           <div className="flex items-center gap-3 pl-2">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-bold text-primary leading-none">Lisa Nguyen</span>
-              <span className="text-[8px] font-bold text-on-surface-variant/50 uppercase tracking-tighter">Manager</span>
+              <span className="text-[10px] font-bold text-primary leading-none">
+                {currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Member'}
+              </span>
+              <span className="text-[8px] font-bold text-on-surface-variant/50 uppercase tracking-tighter">
+                {currentUser?.email ? 'Authorized Agent' : 'Guest'}
+              </span>
             </div>
-            <div className="h-8 w-8 overflow-hidden rounded bg-surface-container border border-outline">
-              <img
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEkvBMTYMPskEqU10YWFLq61onAuLcx7ZuxVftHdNfVF7e_6RDttC9KeBnXycpzRE_IO-oyC7njlLvuGjr2T6OOV8AmUd-UqTVxmbx_J4xiCvygcRJz6ymt2cqPuTISL3NRhqMzCfNhcOvTEPLjLNczVjL2nrauYFdKOt-On5wnFSTbH47Ms9BSz9FLU2CK5J3pWLkvni1a2A4B9VmGce4xq8tcLkt5M-ypuJz69i4TZ-1Quj8nSJrtYtYTVt4IiwQPAtugT1Zo8uQ"
-                alt="User"
-                className="h-full w-full object-cover grayscale"
-              />
+            <div className="h-8 w-8 overflow-hidden rounded bg-surface-container border border-outline flex items-center justify-center">
+              {currentUser?.photoURL ? (
+                <img
+                  src={currentUser.photoURL}
+                  alt="User"
+                  className="h-full w-full object-cover grayscale"
+                />
+              ) : (
+                <User className="h-4 w-4 text-on-surface-variant/40" />
+              )}
             </div>
           </div>
         </div>

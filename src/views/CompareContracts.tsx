@@ -11,6 +11,7 @@ import IngestModal from '../components/IngestModal';
 import { ContractAnalysis } from '../services/geminiService';
 import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import TopBar from '../components/TopBar';
 
 const comparisonFields = [
   { key: 'counterparty', label: 'Counterparty', icon: Files },
@@ -108,6 +109,7 @@ export default function CompareContracts() {
             initial={{ x: -320, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -320, opacity: 0 }}
+            id="walkthrough-compare-library"
             className="w-80 border-r border-outline bg-surface-container-lowest flex flex-col z-30"
           >
             <div className="p-6 border-b border-outline">
@@ -203,42 +205,47 @@ export default function CompareContracts() {
       </AnimatePresence>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Comparison Header */}
-        <header className="flex h-14 w-full items-center justify-between border-b border-outline bg-surface px-6 z-40">
-          <div className="flex items-center gap-3">
-            {!isLibraryOpen && (
-              <button 
-                onClick={() => setIsLibraryOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-surface-container border border-outline rounded-lg text-[9px] font-bold uppercase tracking-widest text-primary hover:bg-surface-container-high transition-all"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add Docs
-              </button>
-            )}
-            <div className="h-4 w-px bg-outline mx-2" />
-            <div className="flex flex-col">
-              <h2 className="text-[11px] font-bold text-primary tracking-tight">Side-by-Side Analysis</h2>
-              <p className="text-[8px] font-bold uppercase tracking-[0.1em] text-on-surface-variant/60">
-                {selectedContracts.length} Documents Selected
-              </p>
+        <TopBar 
+          title="Comparison Engine"
+          actions={
+            <div className="flex items-center gap-3">
+              {!isLibraryOpen && (
+                <button 
+                  onClick={() => setIsLibraryOpen(true)}
+                  className="px-4 py-1.5 bg-surface-container border border-outline rounded text-[9px] font-bold uppercase tracking-widest text-primary hover:bg-surface-container-high transition-all"
+                >
+                  <Plus className="h-3 w-3 mr-1 inline" />
+                  Add Docs
+                </button>
+              )}
+              <div className="flex items-center gap-2">
+                <button 
+                  disabled={selectedContracts.length === 0}
+                  className="p-2 rounded-lg text-on-surface-variant/40 hover:text-primary transition-all disabled:opacity-20"
+                  title="Download Analysis"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+                <button 
+                  disabled={selectedContracts.length === 0}
+                  className="p-2 rounded-lg text-on-surface-variant/40 hover:text-primary transition-all disabled:opacity-20"
+                  title="Share Results"
+                >
+                  <Share2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
+          }
+        />
+
+        <div className="px-8 py-4 border-b border-outline/5 bg-surface-container-lowest/30 backdrop-blur-md flex items-center justify-between">
+           <div className="flex flex-col">
+            <h2 className="text-[11px] font-black text-primary tracking-tight uppercase">Side-by-Side Analysis</h2>
+            <p className="text-[8px] font-black uppercase tracking-[0.1em] text-on-surface/30">
+              {selectedContracts.length} Documents Selected
+            </p>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <button 
-              disabled={selectedContracts.length === 0}
-              className="p-2 rounded-lg text-on-surface/60 hover:bg-surface-container transition-all disabled:opacity-20"
-            >
-              <Download className="h-4 w-4" />
-            </button>
-            <button 
-              disabled={selectedContracts.length === 0}
-              className="p-2 rounded-lg text-on-surface/60 hover:bg-surface-container transition-all disabled:opacity-20"
-            >
-              <Share2 className="h-4 w-4" />
-            </button>
-          </div>
-        </header>
+        </div>
 
         {/* Content Area */}
         <main className="flex-1 overflow-auto custom-scrollbar p-8">
@@ -269,7 +276,7 @@ export default function CompareContracts() {
               </div>
             </div>
           ) : (
-            <div className="max-w-[1240px] mx-auto pb-12">
+            <div id="walkthrough-compare-view" className="max-w-[1240px] mx-auto pb-12">
               <div className="inline-flex min-w-full">
                 {/* Comparison Labels */}
                 <div className="w-56 flex-shrink-0 pt-[184px]">
