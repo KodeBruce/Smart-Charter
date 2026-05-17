@@ -52,6 +52,13 @@ export default function TopBar({ title, showSearch = true, actions }: TopBarProp
       <div className="flex items-center gap-4">
         {actions}
         <div className="flex items-center gap-2">
+          <button 
+            onClick={toggleVoice}
+            aria-label="Toggle voice commands"
+            className={`p-2 min-w-[40px] min-h-[40px] rounded-md transition-all flex items-center justify-center ${isListening ? 'text-primary scale-110 shadow-lg shadow-primary/10' : 'text-on-surface-variant/40 hover:text-primary'}`}
+          >
+            {isListening ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+          </button>
           <button aria-label="Notifications" className="p-2 min-w-[40px] min-h-[40px] rounded-md text-on-surface-variant/40 hover:text-primary transition-all flex items-center justify-center">
             <Bell className="h-4 w-4" />
           </button>

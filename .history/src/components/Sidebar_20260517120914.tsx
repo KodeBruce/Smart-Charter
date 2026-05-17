@@ -11,8 +11,6 @@ export default function Sidebar() {
   const { user, logout } = useFirebase();
   const { theme, toggleTheme } = useTheme();
   const { openIngest } = useIngest();
-  const isListening = false;
-  const toggleVoice = () => {};
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [mobileExtrasOpen, setMobileExtrasOpen] = useState<boolean>(false);
 
