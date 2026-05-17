@@ -1036,8 +1036,12 @@ A partner may withdraw from the partnership upon [NUMBER] days' notice, subject 
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
-                  {paginatedDocs.map((docItem) => (
-                    <div key={`stack-doc-${docItem.id}`} className="p-4 bg-surface-container-low border border-outline rounded-2xl flex items-center justify-between hover:border-primary/40 transition-all group">
+                  {paginatedDocs.map((docItem, idx) => (
+                    <div 
+                      key={`stack-doc-${docItem.id}`} 
+                      id={idx === 0 ? "walkthrough-extraction" : undefined}
+                      className="p-4 bg-surface-container-low border border-outline rounded-2xl flex items-center justify-between hover:border-primary/40 transition-all group"
+                    >
                       <div className="flex items-center gap-4">
                         <button 
                           onClick={() => setEditingDoc(docItem)}

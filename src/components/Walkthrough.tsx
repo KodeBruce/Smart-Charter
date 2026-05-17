@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronRight, ChevronLeft, Volume2, VolumeX, Sparkles, Check, Square, CheckSquare } from 'lucide-react';
+import { db, auth } from '../lib/firebase';
+import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 
 interface Step {
   id: string;
@@ -66,22 +68,13 @@ const steps: Step[] = [
     route: '/risk'
   },
   {
-    id: 'repository',
-    targetId: 'walkthrough-dashboard-view',
-    title: 'Intelligence Portfolio.',
-    content: 'Your signed and active contracts are indexed here. The AI watches for expiry dates, counterparty changes, and regulatory shifts that could affect each agreement.',
-    audioText: 'Your Intelligence Portfolio is a living archive. Our AI remains ever-vigilant, monitoring regulatory shifts and expiry windows to keep your agreements ahead of the curve.',
-    position: 'bottom',
-    route: '/'
-  },
-  {
     id: 'extraction',
-    targetId: 'walkthrough-projects-view',
+    targetId: 'walkthrough-extraction',
     title: 'Deep Clause Intelligence.',
     content: 'Inside any project, you can drill down into individual contracts to see every legal node with risk level, implications, and AI Rewrite options.',
     audioText: 'Deep within each project, you\'ll find absolute clause intelligence. Review implications, assess risks, and use our AI Rewrite to perfect your language. Welcome home to Smart Charter.',
-    position: 'top',
-    route: '/projects'
+    position: 'right',
+    route: '/contract/demo'
   }
 ];
 
@@ -96,6 +89,38 @@ export default function Walkthrough() {
   const [dontShowAgainChecked, setDontShowAgainChecked] = useState(false);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic demo contract resolver
+  const [demoContractId, setDemoContractId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDemoContract = async () => {
+      if (!auth.currentUser) return;
+      try {
+        const q = query(
+          collection(db, 'contracts'),
+          where('ownerId', '==', auth.currentUser.uid),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setDemoContractId(snap.docs[0].id);
+        } else {
+          // Fallback to absolute first contract in db if none owned by user
+          const qAll = query(collection(db, 'contracts'), limit(1));
+          const snapAll = await getDocs(qAll);
+          if (!snapAll.empty) {
+            setDemoContractId(snapAll.docs[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load demo contract:", err);
+      }
+    };
+    if (isVisible) {
+      fetchDemoContract();
+    }
+  }, [isVisible]);
 
   const updateCoords = (retries = 5) => {
     if (currentStep >= 0 && currentStep < steps.length) {
@@ -165,12 +190,19 @@ export default function Walkthrough() {
   useEffect(() => {
     if (isVisible && currentStep >= 0 && currentStep < steps.length) {
       const step = steps[currentStep];
-      if (step.route && location.pathname !== step.route) {
-        navigate(step.route);
+      let targetRoute = step.route;
+      
+      // Dynamic fallback routing for the extraction step to direct to a real contract!
+      if (step.id === 'extraction' && demoContractId) {
+        targetRoute = `/contract/${demoContractId}`;
+      }
+
+      if (targetRoute && location.pathname !== targetRoute) {
+        navigate(targetRoute);
         setTimeout(updateCoords, 500);
       }
     }
-  }, [currentStep, isVisible, location.pathname, navigate]);
+  }, [currentStep, isVisible, location.pathname, navigate, demoContractId]);
 
   useEffect(() => {
     if (!isVisible) return;

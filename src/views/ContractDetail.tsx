@@ -7,7 +7,8 @@ import {
   ArrowLeft, Download, Share2, Calendar, Loader2, X,
   Maximize2, Minimize2, Shield, FileText, Globe,
   RefreshCw, Check, AlertCircle, History, Clock,
-  ArrowRightCircle, DollarSign, Activity, ChevronDown, Files
+  ArrowRightCircle, DollarSign, Activity, ChevronDown, Files,
+  Volume2, VolumeX
 } from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
@@ -70,6 +71,8 @@ export default function ContractDetail() {
     isApplyingChange?: boolean
   } | null>(null);
   const [showDiffInModal, setShowDiffInModal] = useState(false);
+  const [isIntelligenceMuted, setIsIntelligenceMuted] = useState(false);
+  const intelligenceSpeechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const [remediationInsight, setRemediationInsight] = useState<{
     remediatedLanguage: string | null;
@@ -212,6 +215,51 @@ export default function ContractDetail() {
     });
   };
 
+  const toggleIntelligenceVoice = () => {
+    if (isIntelligenceMuted) {
+      window.speechSynthesis.cancel();
+      setIsIntelligenceMuted(false);
+      return;
+    }
+
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsIntelligenceMuted(true);
+      return;
+    }
+
+    if (!intelligenceModal?.explanation) return;
+
+    const utterance = new SpeechSynthesisUtterance(intelligenceModal.explanation.replace(/\*\*/g, ''));
+    const voices = window.speechSynthesis.getVoices();
+    const enVoices = voices.filter(v => v.lang.startsWith('en-'));
+    const preferredVoice = enVoices.find(v => 
+      (v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('neural') || v.name.toLowerCase().includes('online')) && 
+      (v.name.includes('Aria') || v.name.includes('Jenny'))
+    ) || enVoices.find(v => 
+      v.name.includes('Google US English') || v.name.includes('Samantha') || v.name.includes('Victoria')
+    ) || enVoices.find(v => 
+      v.name.toLowerCase().includes('female')
+    ) || enVoices.find(v => v.lang === 'en-US') || enVoices[0] || voices[0];
+    
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.onend = () => setIsIntelligenceMuted(false);
+    intelligenceSpeechRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+    setIsIntelligenceMuted(false);
+  };
+
+  const closeIntelligenceModal = () => {
+    window.speechSynthesis.cancel();
+    setIsIntelligenceMuted(false);
+    setIntelligenceModal(null);
+  };
+
   const generateNeuralInsight = async () => {
     if (!intelligenceModal) return;
     setIntelligenceModal(prev => prev ? { ...prev, isGenerating: true } : null);
@@ -300,6 +348,7 @@ export default function ContractDetail() {
       }, { merge: true });
       
       setIntelligenceModal(null);
+      window.speechSynthesis.cancel();
     } catch (err: any) {
       console.error("Optimization Apply Error:", err);
       alert(`Failed to apply optimization: ${err.message || 'Unknown error'}`);
@@ -1804,7 +1853,7 @@ export default function ContractDetail() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 lg:p-8"
-            onClick={() => setIntelligenceModal(null)}
+            onClick={closeIntelligenceModal}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -1823,12 +1872,30 @@ export default function ContractDetail() {
                   <h2 className="text-3xl font-black text-on-surface tracking-tight">{intelligenceModal.title}</h2>
                   <p className="text-lg font-bold text-primary dark:text-primary-light mt-1">{intelligenceModal.value}</p>
                 </div>
-                <button 
-                  onClick={() => setIntelligenceModal(null)}
-                  className="p-3 hover:bg-surface-container rounded-full transition-colors group"
-                >
-                  <X className="h-5 w-5 text-on-surface/50 group-hover:text-on-surface transition-colors" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {intelligenceModal.explanation && (
+                    <button 
+                      onClick={toggleIntelligenceVoice}
+                      className={`p-3 rounded-full transition-all flex items-center gap-2 ${
+                        window.speechSynthesis.speaking && !isIntelligenceMuted 
+                          ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                          : 'hover:bg-surface-container text-on-surface/50 hover:text-primary'
+                      }`}
+                      title={window.speechSynthesis.speaking && !isIntelligenceMuted ? "Stop Reading" : "Read Aloud"}
+                    >
+                      {window.speechSynthesis.speaking && !isIntelligenceMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                      {window.speechSynthesis.speaking && !isIntelligenceMuted && (
+                        <span className="text-[10px] font-black uppercase tracking-widest pr-1">Reading Node</span>
+                      )}
+                    </button>
+                  )}
+                  <button 
+                    onClick={closeIntelligenceModal}
+                    className="p-3 hover:bg-surface-container rounded-full transition-colors group"
+                  >
+                    <X className="h-5 w-5 text-on-surface/50 group-hover:text-on-surface transition-colors" />
+                  </button>
+                </div>
               </div>
               
               <div className="p-8 min-h-[200px] max-h-[60vh] overflow-y-auto custom-scrollbar">
@@ -1937,7 +2004,7 @@ export default function ContractDetail() {
                         
                         <div className="flex items-center gap-4">
                           <button
-                            onClick={() => setIntelligenceModal(null)}
+                            onClick={closeIntelligenceModal}
                             className="flex-1 py-4 bg-surface-container border border-outline/10 text-on-surface rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-surface-container-high transition-all"
                           >
                             Ignore Suggestion
