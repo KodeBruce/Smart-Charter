@@ -1,0 +1,18 @@
+{
+    "sourceFile": "src/views/Repository.tsx",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1778994340943,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1778994340943,
+            "name": "Commit-0",
+            "content": "import React from 'react';\r\nimport TopBar from '../components/TopBar';\r\n\r\nexport default function Repository() {\r\n  return (\r\n    <div className=\"flex flex-col h-full bg-surface overflow-hidden\">\r\n      <TopBar title=\"Repository\" />\r\n      <main className=\"p-4 sm:p-6\">\r\n        <h1 className=\"text-xl font-bold\">Repository</h1>\r\n        <p className=\"mt-4 text-on-surface/60\">Placeholder view while fixing responsiveness and restoring the table/modals.</p>\r\n      </main>\r\n    </div>\r\n  );\r\n}\r\n"
+        }
+    ]
+}
