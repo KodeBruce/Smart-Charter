@@ -142,29 +142,6 @@ export default function VoiceController() {
     }, 12000);
   }, [clearPendingVoiceAction, isListening]);
 
-  const pickPreferredVoice = (voices: SpeechSynthesisVoice[]) => {
-    // Respect explicit user selection saved in localStorage
-    try {
-      const chosen = localStorage.getItem('smartCharter.voiceName');
-      if (chosen) {
-        const found = voices.find(v => v.name === chosen || v.voiceURI === chosen);
-        if (found) return found;
-      }
-    } catch (e) {}
-
-    const englishVoices = voices.filter(voice => /^en(-|$)/i.test(voice.lang));
-
-    return (
-      englishVoices.find(voice => voice.lang.toLowerCase() === 'en-us') ||
-      englishVoices.find(voice => /google|microsoft|natural|enhanced|neural/i.test(voice.name)) ||
-      englishVoices[0] ||
-      voices.find(voice => /google|microsoft|natural|enhanced|neural/i.test(voice.name)) ||
-      voices.find(voice => voice.default) ||
-      voices[0] ||
-      null
-    );
-  };
-
   // Speaks response with Web Speech Synthesis
   // Improved speaking: split into short utterances for natural pauses,
   // vary pitch/rate slightly, and prefer high-quality 'neural' voices when available.
@@ -176,15 +153,14 @@ export default function VoiceController() {
     // Normalize text: trim and ensure punctuation for splitting
     const normalized = text.trim().replace(/\s+/g, ' ');
 
-    // Split into smaller utterances for more natural pacing (sentences, commas)
-    const parts = normalized
-      .split(/(?<=[.!?])\s+|,\s+/)
-      .map(p => p.trim())
-      .filter(Boolean);
+    // Split into sentences while keeping delimiters
+    const parts = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
 
     // Prefer premium voices (WaveNet / Neural / Google labels)
     const voices = window.speechSynthesis.getVoices() || [];
-    const preferred = pickPreferredVoice(voices);
+    const preferred = voices.find(v => /(neural|wav[e]?net|google|amazon|acapela|azure)/i.test(v.name))
+      || voices.find(v => v.lang?.startsWith('en'))
+      || voices[0];
 
     if (!parts.length) {
       isSpeakingRef.current = false;
@@ -213,7 +189,6 @@ export default function VoiceController() {
       const sentence = parts[index++];
       const utt = new SpeechSynthesisUtterance(sentence);
       if (preferred) utt.voice = preferred;
-      utt.lang = (preferred && preferred.lang) ? preferred.lang : 'en-US';
 
       // Slight prosody variation for more natural rhythm
       utt.rate = Math.max(0.9, Math.min(1.15, 1.02 + (Math.random() - 0.5) * 0.14));
@@ -222,9 +197,8 @@ export default function VoiceController() {
 
       // Small pre-breath: very short silent gap simulated by delaying the speak call
       utt.onend = () => {
-        // Insert a short pause between utterances (human-like breathing)
-        const basePause = sentence.length > 120 ? 300 : sentence.length > 60 ? 180 : 110;
-        setTimeout(speakNext, basePause + Math.floor(Math.random() * 120));
+        // Insert a short pause between sentences (human-like breathing)
+        setTimeout(speakNext, 120 + Math.floor(Math.random() * 80));
       };
       utt.onerror = () => {
         // Continue to next piece on error
@@ -243,18 +217,10 @@ export default function VoiceController() {
     setLastCommand(transcript);
     setShowFeedback(true);
     setTimeout(() => setShowFeedback(false), 3000);
+
     const hasPendingConfirmation = !!pendingVoiceAction;
     const isConfirmWord = /\b(confirm|confirm it|proceed|yes|do it|execute)\b/i.test(cmd);
     const isCancelWord = /\b(cancel|abort|stop|never mind|nevermind)\b/i.test(cmd);
-
-    // Global cancel: if user says cancel at any time, abort TTS and pending actions
-    if (isCancelWord) {
-      try { window.speechSynthesis.cancel(); } catch {}
-      clearPendingVoiceAction();
-      setMicStatus(isListening ? 'listening' : 'idle');
-      speakText('Cancelled.');
-      return;
-    }
 
     if (hasPendingConfirmation) {
       if (isConfirmWord) {
@@ -267,7 +233,13 @@ export default function VoiceController() {
         return;
       }
 
-      // handled cancel above
+      if (isCancelWord) {
+        clearPendingVoiceAction();
+        setMicStatus('cancelled');
+        speakText('Cancelled.');
+        return;
+      }
+
       speakText('A confirmation is pending. Say confirm or cancel.');
       return;
     }
@@ -338,7 +310,7 @@ export default function VoiceController() {
     if (!matched && transcript.trim().length > 3) {
       speakText("No matching command. Try upload document, go to projects, or go to compare.");
     }
-  }, [navigate, verifiedCommands, isListening, pendingVoiceAction, clearPendingVoiceAction, queuePendingVoiceAction]);
+  }, [navigate, verifiedCommands, isListening]);
 
   // Cancel synthesis on close/disable
   useEffect(() => {
@@ -492,7 +464,6 @@ export default function VoiceController() {
         simulate: (text: string) => window.dispatchEvent(new CustomEvent('smart-charter-voice-simulate', { detail: text })),
         start: () => { startRecognitionEngine('manual'); },
         stop: () => { stopRecognitionEngine(); },
-        cancel: () => { try { window.speechSynthesis.cancel(); } catch {} ; try { clearPendingVoiceAction(); } catch {} },
         isSupported: !!SpeechRecognition,
         checkPermissions: async () => {
           try {
@@ -686,9 +657,6 @@ export default function VoiceController() {
                 <p className="text-[10px] text-white/45 mt-1">Tap Start Mic to keep this panel active and test voice input.</p>
                 <p className="text-[10px] font-mono text-white/40 mt-1">Status: {micStatus}</p>
                 {micError && <p className="text-[10px] font-mono text-[#E2FF6F] mt-1">Error: {micError}</p>}
-                {pendingVoiceAction && (
-                  <p className="text-[10px] font-mono text-[#E2FF6F] mt-1">Pending: {pendingVoiceAction.label}</p>
-                )}
               </div>
             )}
 
@@ -705,9 +673,6 @@ export default function VoiceController() {
                   </p>
                   <p className="text-[10px] font-mono text-white/40 mt-1">Status: {micStatus}</p>
                   {micError && <p className="text-[10px] font-mono text-[#E2FF6F] mt-1">Error: {micError}</p>}
-                  {pendingVoiceAction && (
-                    <p className="text-[10px] font-mono text-[#E2FF6F] mt-1">Pending: {pendingVoiceAction.label}</p>
-                  )}
                   {rawDebugTranscript && (
                     <p className="text-[10px] font-mono text-white/50 truncate mt-1">Debug: {rawDebugTranscript}</p>
                   )}
@@ -842,16 +807,6 @@ export default function VoiceController() {
                     className="px-3 py-1 border border-white/10 text-white/60 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl hover:bg-white/10 transition-all"
                   >
                     Stop Mic
-                  </button>
-                  <button
-                    onClick={() => {
-                      try { window.speechSynthesis.cancel(); } catch {}
-                      clearPendingVoiceAction();
-                      setMicStatus('cancelled');
-                    }}
-                    className="px-3 py-1 border border-white/10 text-white/60 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl hover:bg-white/10 transition-all"
-                  >
-                    Cancel
                   </button>
                 </div>
                 <div className="flex gap-2">

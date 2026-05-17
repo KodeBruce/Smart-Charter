@@ -18,42 +18,6 @@ export default function Settings() {
     { title: 'Security', icon: Lock },
   ];
 
-  function VoiceSelector() {
-    const [voices, setVoices] = React.useState<SpeechSynthesisVoice[]>([]);
-    const [selected, setSelected] = React.useState<string | null>(() => {
-      try { return localStorage.getItem('smartCharter.voiceName'); } catch { return null; }
-    });
-
-    React.useEffect(() => {
-      const load = () => {
-        const v = window.speechSynthesis.getVoices() || [];
-        setVoices(v);
-      };
-      load();
-      window.speechSynthesis.onvoiceschanged = load;
-      return () => { window.speechSynthesis.onvoiceschanged = null; };
-    }, []);
-
-    const handle = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const name = e.target.value || null;
-      setSelected(name);
-      try { localStorage.setItem('smartCharter.voiceName', name || ''); } catch {}
-      try { window.dispatchEvent(new CustomEvent('smart-charter-voice-changed', { detail: name })); } catch {}
-    };
-
-    return (
-      <div className="mt-3">
-        <select value={selected ?? ''} onChange={handle} className="w-full rounded-md p-2 bg-surface border border-outline/10 text-on-surface">
-          <option value="">(Browser default)</option>
-          {voices.map(v => (
-            <option key={v.name + '|' + v.lang} value={v.name}>{v.name} — {v.lang}</option>
-          ))}
-        </select>
-        <p className="text-[10px] text-on-surface/50 mt-2">Choose a browser-provided voice for the Vocal Sentinel. Changes apply immediately.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full bg-surface overflow-hidden">
       <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">

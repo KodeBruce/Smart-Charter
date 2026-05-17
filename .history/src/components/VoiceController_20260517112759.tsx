@@ -492,7 +492,6 @@ export default function VoiceController() {
         simulate: (text: string) => window.dispatchEvent(new CustomEvent('smart-charter-voice-simulate', { detail: text })),
         start: () => { startRecognitionEngine('manual'); },
         stop: () => { stopRecognitionEngine(); },
-        cancel: () => { try { window.speechSynthesis.cancel(); } catch {} ; try { clearPendingVoiceAction(); } catch {} },
         isSupported: !!SpeechRecognition,
         checkPermissions: async () => {
           try {
@@ -842,16 +841,6 @@ export default function VoiceController() {
                     className="px-3 py-1 border border-white/10 text-white/60 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl hover:bg-white/10 transition-all"
                   >
                     Stop Mic
-                  </button>
-                  <button
-                    onClick={() => {
-                      try { window.speechSynthesis.cancel(); } catch {}
-                      clearPendingVoiceAction();
-                      setMicStatus('cancelled');
-                    }}
-                    className="px-3 py-1 border border-white/10 text-white/60 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl hover:bg-white/10 transition-all"
-                  >
-                    Cancel
                   </button>
                 </div>
                 <div className="flex gap-2">

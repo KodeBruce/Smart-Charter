@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, MicOff, Command, Sparkles, CheckCircle2, Circle, ChevronRight, HelpCircle } from 'lucide-react';
+import { Mic, MicOff, Command, Sparkles, CheckCircle2, Circle, ChevronRight, HelpCircle, MessageSquare, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useVoice } from '../contexts/VoiceContext';
 import { auth } from '../lib/firebase';
@@ -20,16 +20,17 @@ export default function VoiceController() {
   const [rawDebugTranscript, setRawDebugTranscript] = useState<string | null>(null);
   const [micStatus, setMicStatus] = useState<string>('idle');
   const [micError, setMicError] = useState<string | null>(null);
-  const [pendingVoiceAction, setPendingVoiceAction] = useState<{ label: string; transcript: string } | null>(null);
   const recognitionRef = useRef<any>(null);
   const recognitionStateRef = useRef<'idle' | 'starting' | 'listening' | 'stopping'>('idle');
   const restartTimeoutRef = useRef<number | null>(null);
-  const pendingVoiceTimeoutRef = useRef<number | null>(null);
-  const suppressRecognitionUntilRef = useRef(0);
   
   // High-fidelity speech guards
   const isSpeakingRef = useRef(false);
   const lastCommandTimeRef = useRef(0);
+
+  // Conversational States
+  const [isThinking, setIsThinking] = useState(false);
+  const [sentinelResponse, setSentinelResponse] = useState<string | null>(null);
 
   // Gamified Verification State
   const [verifiedCommands, setVerifiedCommands] = useState<{
@@ -46,7 +47,7 @@ export default function VoiceController() {
     walkthrough: false,
   });
 
-  const [activeTab, setActiveTab] = useState<'navigation' | 'workflows'>('navigation');
+  const [activeTab, setActiveTab] = useState<'navigation' | 'workflows' | 'chat'>('navigation');
 
   // Trigger quick calibration sound on checkoff
   const playCheckoffSound = () => {
@@ -117,54 +118,6 @@ export default function VoiceController() {
     }
   };
 
-  const clearPendingVoiceAction = useCallback(() => {
-    if (pendingVoiceTimeoutRef.current) {
-      window.clearTimeout(pendingVoiceTimeoutRef.current);
-      pendingVoiceTimeoutRef.current = null;
-    }
-    setPendingVoiceAction(null);
-  }, []);
-
-  const queuePendingVoiceAction = useCallback((label: string, transcript: string) => {
-    clearPendingVoiceAction();
-    setPendingVoiceAction({ label, transcript });
-    setMicStatus('awaiting confirmation');
-    speakText(`${label}. Say confirm to proceed or cancel to abort.`);
-
-    pendingVoiceTimeoutRef.current = window.setTimeout(() => {
-      setPendingVoiceAction(current => {
-        if (!current || current.transcript !== transcript) return current;
-        speakText('Confirmation timed out. Command cancelled.');
-        setMicStatus(isListening ? 'listening' : 'idle');
-        return null;
-      });
-      pendingVoiceTimeoutRef.current = null;
-    }, 12000);
-  }, [clearPendingVoiceAction, isListening]);
-
-  const pickPreferredVoice = (voices: SpeechSynthesisVoice[]) => {
-    // Respect explicit user selection saved in localStorage
-    try {
-      const chosen = localStorage.getItem('smartCharter.voiceName');
-      if (chosen) {
-        const found = voices.find(v => v.name === chosen || v.voiceURI === chosen);
-        if (found) return found;
-      }
-    } catch (e) {}
-
-    const englishVoices = voices.filter(voice => /^en(-|$)/i.test(voice.lang));
-
-    return (
-      englishVoices.find(voice => voice.lang.toLowerCase() === 'en-us') ||
-      englishVoices.find(voice => /google|microsoft|natural|enhanced|neural/i.test(voice.name)) ||
-      englishVoices[0] ||
-      voices.find(voice => /google|microsoft|natural|enhanced|neural/i.test(voice.name)) ||
-      voices.find(voice => voice.default) ||
-      voices[0] ||
-      null
-    );
-  };
-
   // Speaks response with Web Speech Synthesis
   // Improved speaking: split into short utterances for natural pauses,
   // vary pitch/rate slightly, and prefer high-quality 'neural' voices when available.
@@ -176,15 +129,14 @@ export default function VoiceController() {
     // Normalize text: trim and ensure punctuation for splitting
     const normalized = text.trim().replace(/\s+/g, ' ');
 
-    // Split into smaller utterances for more natural pacing (sentences, commas)
-    const parts = normalized
-      .split(/(?<=[.!?])\s+|,\s+/)
-      .map(p => p.trim())
-      .filter(Boolean);
+    // Split into sentences while keeping delimiters
+    const parts = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
 
     // Prefer premium voices (WaveNet / Neural / Google labels)
     const voices = window.speechSynthesis.getVoices() || [];
-    const preferred = pickPreferredVoice(voices);
+    const preferred = voices.find(v => /(neural|wav[e]?net|google|amazon|acapela|azure)/i.test(v.name))
+      || voices.find(v => v.lang?.startsWith('en'))
+      || voices[0];
 
     if (!parts.length) {
       isSpeakingRef.current = false;
@@ -194,7 +146,6 @@ export default function VoiceController() {
     // Stop recognition while speaking
     try { recognitionRef.current?.stop(); } catch {}
     isSpeakingRef.current = true;
-    suppressRecognitionUntilRef.current = Date.now() + 1200;
 
     let index = 0;
     const speakNext = () => {
@@ -202,10 +153,7 @@ export default function VoiceController() {
         isSpeakingRef.current = false;
         // resume recognition if still listening
         if (isListening) {
-          setTimeout(() => {
-            suppressRecognitionUntilRef.current = Date.now() + 600;
-            try { startRecognitionEngine('restart'); } catch {}
-          }, 600);
+          try { recognitionRef.current?.start(); } catch {}
         }
         return;
       }
@@ -213,7 +161,6 @@ export default function VoiceController() {
       const sentence = parts[index++];
       const utt = new SpeechSynthesisUtterance(sentence);
       if (preferred) utt.voice = preferred;
-      utt.lang = (preferred && preferred.lang) ? preferred.lang : 'en-US';
 
       // Slight prosody variation for more natural rhythm
       utt.rate = Math.max(0.9, Math.min(1.15, 1.02 + (Math.random() - 0.5) * 0.14));
@@ -222,9 +169,8 @@ export default function VoiceController() {
 
       // Small pre-breath: very short silent gap simulated by delaying the speak call
       utt.onend = () => {
-        // Insert a short pause between utterances (human-like breathing)
-        const basePause = sentence.length > 120 ? 300 : sentence.length > 60 ? 180 : 110;
-        setTimeout(speakNext, basePause + Math.floor(Math.random() * 120));
+        // Insert a short pause between sentences (human-like breathing)
+        setTimeout(speakNext, 120 + Math.floor(Math.random() * 80));
       };
       utt.onerror = () => {
         // Continue to next piece on error
@@ -243,34 +189,6 @@ export default function VoiceController() {
     setLastCommand(transcript);
     setShowFeedback(true);
     setTimeout(() => setShowFeedback(false), 3000);
-    const hasPendingConfirmation = !!pendingVoiceAction;
-    const isConfirmWord = /\b(confirm|confirm it|proceed|yes|do it|execute)\b/i.test(cmd);
-    const isCancelWord = /\b(cancel|abort|stop|never mind|nevermind)\b/i.test(cmd);
-
-    // Global cancel: if user says cancel at any time, abort TTS and pending actions
-    if (isCancelWord) {
-      try { window.speechSynthesis.cancel(); } catch {}
-      clearPendingVoiceAction();
-      setMicStatus(isListening ? 'listening' : 'idle');
-      speakText('Cancelled.');
-      return;
-    }
-
-    if (hasPendingConfirmation) {
-      if (isConfirmWord) {
-        clearPendingVoiceAction();
-        setMicStatus('confirmed');
-        speakText(`Confirmed. ${pendingVoiceAction?.label ?? 'Action'} will proceed.`);
-        window.dispatchEvent(new CustomEvent('smart-charter-voice-action-confirmed', {
-          detail: { transcript: pendingVoiceAction?.transcript ?? transcript }
-        }));
-        return;
-      }
-
-      // handled cancel above
-      speakText('A confirmation is pending. Say confirm or cancel.');
-      return;
-    }
 
     let matched = false;
 
@@ -328,33 +246,47 @@ export default function VoiceController() {
        matched = true;
     }
 
-    // Destructive actions require explicit confirmation before any future execution path runs.
-    else if (/(delete|remove|clear|reset|wipe|purge|erase)\b/i.test(cmd)) {
-      queuePendingVoiceAction('Destructive action detected', transcript);
-      matched = true;
-    }
-
-    // IF NOT MATCHED: stay in command mode and give a short audible hint.
+    // IF NOT MATCHED: Trigger Intelligent Conversation Mode!
     if (!matched && transcript.trim().length > 3) {
-      speakText("No matching command. Try upload document, go to projects, or go to compare.");
+      setActiveTab('chat');
+      setIsThinking(true);
+      setSentinelResponse("Sentinel is thinking...");
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const response = await fetch('/api/gemini/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
+          body: JSON.stringify({
+            prompt: transcript,
+            systemInstruction: "You are the voice-interactive Vocal Sentinel inside the Smart Charter contract intelligence platform. Answer this question in a warm, expert, legal analyst persona. Keep your response extremely concise (maximum 30 words) so it is perfect for rapid voice read-aloud."
+          })
+        });
+        const data = await response.json();
+        if (data.text) {
+          setSentinelResponse(data.text);
+          speakText(data.text);
+        } else {
+          setSentinelResponse("I understood your voice but could not process a response.");
+        }
+      } catch (err) {
+        console.error('Conversational response failed:', err);
+        setSentinelResponse("System connection issue. Please check network protocols.");
+      } finally {
+        setIsThinking(false);
+      }
     }
-  }, [navigate, verifiedCommands, isListening, pendingVoiceAction, clearPendingVoiceAction, queuePendingVoiceAction]);
+  }, [navigate, verifiedCommands, isListening]);
 
   // Cancel synthesis on close/disable
   useEffect(() => {
     if (!isListening) {
       window.speechSynthesis.cancel();
+      setSentinelResponse(null);
     }
   }, [isListening]);
-
-  useEffect(() => {
-    return () => {
-      if (pendingVoiceTimeoutRef.current) {
-        window.clearTimeout(pendingVoiceTimeoutRef.current);
-      }
-      clearPendingVoiceAction();
-    };
-  }, [clearPendingVoiceAction]);
 
   // Auto transition tab when a section is completed
   useEffect(() => {
@@ -382,9 +314,6 @@ export default function VoiceController() {
     let lastProcessedText = '';
 
     recognition.onresult = (event: any) => {
-      if (isSpeakingRef.current || Date.now() < suppressRecognitionUntilRef.current) {
-        return;
-      }
       // Debug: surface transcripts for easier debugging in console
       try {
         const dbgAll: string[] = [];
@@ -492,7 +421,6 @@ export default function VoiceController() {
         simulate: (text: string) => window.dispatchEvent(new CustomEvent('smart-charter-voice-simulate', { detail: text })),
         start: () => { startRecognitionEngine('manual'); },
         stop: () => { stopRecognitionEngine(); },
-        cancel: () => { try { window.speechSynthesis.cancel(); } catch {} ; try { clearPendingVoiceAction(); } catch {} },
         isSupported: !!SpeechRecognition,
         checkPermissions: async () => {
           try {
@@ -686,9 +614,6 @@ export default function VoiceController() {
                 <p className="text-[10px] text-white/45 mt-1">Tap Start Mic to keep this panel active and test voice input.</p>
                 <p className="text-[10px] font-mono text-white/40 mt-1">Status: {micStatus}</p>
                 {micError && <p className="text-[10px] font-mono text-[#E2FF6F] mt-1">Error: {micError}</p>}
-                {pendingVoiceAction && (
-                  <p className="text-[10px] font-mono text-[#E2FF6F] mt-1">Pending: {pendingVoiceAction.label}</p>
-                )}
               </div>
             )}
 
@@ -705,9 +630,6 @@ export default function VoiceController() {
                   </p>
                   <p className="text-[10px] font-mono text-white/40 mt-1">Status: {micStatus}</p>
                   {micError && <p className="text-[10px] font-mono text-[#E2FF6F] mt-1">Error: {micError}</p>}
-                  {pendingVoiceAction && (
-                    <p className="text-[10px] font-mono text-[#E2FF6F] mt-1">Pending: {pendingVoiceAction.label}</p>
-                  )}
                   {rawDebugTranscript && (
                     <p className="text-[10px] font-mono text-white/50 truncate mt-1">Debug: {rawDebugTranscript}</p>
                   )}
@@ -736,6 +658,17 @@ export default function VoiceController() {
                 }`}
               >
                 Actions
+              </button>
+              <button 
+                onClick={() => setActiveTab('chat')}
+                className={`flex-1 py-1.5 text-[8px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  activeTab === 'chat' 
+                    ? 'bg-white/10 text-primary shadow-sm' 
+                    : 'text-white/40 hover:text-white/60'
+                }`}
+              >
+                <MessageSquare className="h-2.5 w-2.5" />
+                Chat
               </button>
             </div>
 
@@ -811,6 +744,38 @@ export default function VoiceController() {
                   </motion.div>
                 )}
 
+                {activeTab === 'chat' && (
+                  <motion.div 
+                    key="chat"
+                    initial={{ x: -10, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: 10, opacity: 0 }}
+                    className="flex flex-col h-[140px] justify-between p-3 bg-white/[0.03] border border-white/5 rounded-2xl"
+                  >
+                    <div className="overflow-y-auto flex-1 custom-scrollbar flex flex-col justify-center items-center gap-3">
+                      {isThinking ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#E2FF6F]">Consulting Sentinel</span>
+                        </div>
+                      ) : sentinelResponse ? (
+                        <div className="text-center px-2">
+                          <p className="text-[11px] leading-relaxed font-semibold italic text-white/90">
+                            "{sentinelResponse}"
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center px-4 py-2">
+                          <Sparkles className="h-5 w-5 text-primary mx-auto mb-2 opacity-50 animate-pulse" />
+                          <p className="text-[10px] font-bold text-white/70">Intelligent Voice Companion</p>
+                          <p className="text-[8px] text-white/30 uppercase tracking-widest mt-1">
+                            Ask me any contract or general legal questions aloud!
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
 
@@ -842,16 +807,6 @@ export default function VoiceController() {
                     className="px-3 py-1 border border-white/10 text-white/60 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl hover:bg-white/10 transition-all"
                   >
                     Stop Mic
-                  </button>
-                  <button
-                    onClick={() => {
-                      try { window.speechSynthesis.cancel(); } catch {}
-                      clearPendingVoiceAction();
-                      setMicStatus('cancelled');
-                    }}
-                    className="px-3 py-1 border border-white/10 text-white/60 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl hover:bg-white/10 transition-all"
-                  >
-                    Cancel
                   </button>
                 </div>
                 <div className="flex gap-2">
