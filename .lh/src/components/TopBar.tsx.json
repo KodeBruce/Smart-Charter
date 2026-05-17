@@ -3,11 +3,15 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 0,
+            "activePatchIndex": 1,
             "patches": [
                 {
                     "date": 1778994356662,
                     "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1779012661561,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,7 +1,6 @@\n import React, { useState } from 'react';\r\n-import { Search, Bell, HelpCircle, Mic, MicOff, User, X } from 'lucide-react';\r\n-import { useVoice } from '../contexts/VoiceContext';\r\n+import { Search, Bell, HelpCircle, User, X } from 'lucide-react';\r\n import { auth } from '../lib/firebase';\r\n \r\n interface TopBarProps {\r\n   title?: string;\r\n@@ -9,9 +8,9 @@\n   actions?: React.ReactNode;\r\n }\r\n \r\n export default function TopBar({ title, showSearch = true, actions }: TopBarProps) {\r\n-  const { isListening, toggleVoice } = useVoice();\r\n+  // voice feature removed\r\n   const currentUser = auth.currentUser;\r\n   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);\r\n \r\n   return (\r\n@@ -52,15 +51,8 @@\n \r\n       <div className=\"flex items-center gap-4\">\r\n         {actions}\r\n         <div className=\"flex items-center gap-2\">\r\n-          <button \r\n-            onClick={toggleVoice}\r\n-            aria-label=\"Toggle voice commands\"\r\n-            className={`p-2 min-w-[40px] min-h-[40px] rounded-md transition-all flex items-center justify-center ${isListening ? 'text-primary scale-110 shadow-lg shadow-primary/10' : 'text-on-surface-variant/40 hover:text-primary'}`}\r\n-          >\r\n-            {isListening ? <Mic className=\"h-4 w-4\" /> : <MicOff className=\"h-4 w-4\" />}\r\n-          </button>\r\n           <button aria-label=\"Notifications\" className=\"p-2 min-w-[40px] min-h-[40px] rounded-md text-on-surface-variant/40 hover:text-primary transition-all flex items-center justify-center\">\r\n             <Bell className=\"h-4 w-4\" />\r\n           </button>\r\n           <div className=\"h-4 w-px bg-outline mx-2 hidden sm:block\" />\r\n"
                 }
             ],
             "date": 1778994356662,

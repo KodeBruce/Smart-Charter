@@ -3,11 +3,15 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 0,
+            "activePatchIndex": 1,
             "patches": [
                 {
                     "date": 1778994340936,
                     "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1779012661559,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -4,16 +4,16 @@\n import { motion } from 'motion/react';\r\n import { useFirebase } from '../lib/FirebaseProvider';\r\n import { useTheme } from '../contexts/ThemeContext';\r\n import { useIngest } from '../contexts/IngestContext';\r\n-import { useVoice } from '../contexts/VoiceContext';\r\n \r\n export default function Sidebar() {\r\n   const location = useLocation();\r\n   const { user, logout } = useFirebase();\r\n   const { theme, toggleTheme } = useTheme();\r\n   const { openIngest } = useIngest();\r\n-  const { isListening, toggleVoice } = useVoice();\r\n+  const isListening = false;\r\n+  const toggleVoice = () => {};\r\n   const [collapsed, setCollapsed] = useState<boolean>(false);\r\n   const [mobileExtrasOpen, setMobileExtrasOpen] = useState<boolean>(false);\r\n \r\n   useEffect(() => {\r\n"
                 }
             ],
             "date": 1778994340936,

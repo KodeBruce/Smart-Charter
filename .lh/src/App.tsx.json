@@ -1,0 +1,18 @@
+{
+    "sourceFile": "src/App.tsx",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1779012661555,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1779012661555,
+            "name": "Commit-0",
+            "content": "/**\r\n * @license\r\n * SPDX-License-Identifier: Apache-2.0\r\n */\r\n\r\nimport React from 'react';\r\nimport { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';\r\nimport Layout from './components/Layout';\r\nimport Dashboard from './views/Dashboard';\r\nimport Repository from './views/Repository';\r\nimport ContractDetail from './views/ContractDetail';\r\nimport RiskPlaybook from './views/RiskPlaybook';\r\nimport CompareContracts from './views/CompareContracts';\r\nimport Projects from './views/Projects';\r\nimport ProjectWorkspace from './views/ProjectWorkspace';\r\nimport StrategicHub from './views/StrategicHub';\r\nimport Settings from './views/Settings';\r\nimport Login from './views/Login';\r\nimport { useFirebase } from './lib/FirebaseProvider';\r\n\r\nimport { ThemeProvider } from './contexts/ThemeContext';\r\nimport { IngestProvider } from './contexts/IngestContext';\r\n\r\nexport default function App() {\r\n  const { user, loading } = useFirebase();\r\n\r\n  if (loading) {\r\n    return (\r\n      <ThemeProvider>\r\n        <div className=\"flex h-screen items-center justify-center bg-surface\">\r\n          <div className=\"h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent\"></div>\r\n        </div>\r\n      </ThemeProvider>\r\n    );\r\n  }\r\n\r\n  if (!user) {\r\n    return (\r\n      <ThemeProvider>\r\n        <BrowserRouter>\r\n          <Routes>\r\n            <Route path=\"/login\" element={<Login />} />\r\n            <Route path=\"*\" element={<Navigate to=\"/login\" replace />} />\r\n          </Routes>\r\n        </BrowserRouter>\r\n      </ThemeProvider>\r\n    );\r\n  }\r\n\r\n  return (\r\n    <ThemeProvider>\r\n      <BrowserRouter>\r\n        <IngestProvider>\r\n            <Routes>\r\n              <Route element={<Layout />}>\r\n                <Route path=\"/\" element={<Dashboard />} />\r\n                <Route path=\"/repository\" element={<Repository />} />\r\n                <Route path=\"/contract/:id\" element={<ContractDetail />} />\r\n                <Route path=\"/compare\" element={<CompareContracts />} />\r\n                <Route path=\"/strategic-hub\" element={<StrategicHub />} />\r\n                <Route path=\"/risk\" element={<RiskPlaybook />} />\r\n                <Route path=\"/projects\" element={<Projects />} />\r\n                <Route path=\"/project/:id\" element={<ProjectWorkspace />} />\r\n                <Route path=\"/settings\" element={<Settings />} />\r\n                <Route path=\"*\" element={<Navigate to=\"/\" replace />} />\r\n              </Route>\r\n            </Routes>\r\n        </IngestProvider>\r\n      </BrowserRouter>\r\n    </ThemeProvider>\r\n  );\r\n}\r\n"
+        }
+    ]
+}

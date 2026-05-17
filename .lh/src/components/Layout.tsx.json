@@ -1,0 +1,18 @@
+{
+    "sourceFile": "src/components/Layout.tsx",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1779012661556,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1779012661556,
+            "name": "Commit-0",
+            "content": "import React from 'react';\r\nimport { Outlet } from 'react-router-dom';\r\nimport Sidebar from './Sidebar';\r\nimport Walkthrough from './Walkthrough';\r\n\r\nexport default function Layout() {\r\n  return (\r\n    <div className=\"flex min-h-screen bg-surface relative overflow-hidden\">\r\n      {/* Background Mesh Gradient */}\r\n      <div className=\"fixed inset-0 pointer-events-none z-0\">\r\n        <div className=\"absolute inset-0 bg-[var(--mesh-gradient)] opacity-30 animate-mesh\" />\r\n      </div>\r\n\r\n      <Sidebar />\r\n      <Walkthrough />\r\n      \r\n      <main className=\"flex-1 flex flex-col md:ml-24 md:mr-6 my-4 md:my-5 bg-surface/80 backdrop-blur-xl border border-outline rounded-[32px] shadow-2xl shadow-black/[0.05] overflow-hidden relative z-10\">\r\n        <div className=\"flex-1 overflow-hidden flex flex-col\">\r\n          <Outlet />\r\n        </div>\r\n      </main>\r\n    </div>\r\n  );\r\n}\r\n"
+        }
+    ]
+}
