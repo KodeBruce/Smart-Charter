@@ -146,5 +146,15 @@ service cloud.firestore {
         allow delete: if isSignedIn() && get(/databases/$(database)/documents/contracts/$(contractId)).data.ownerId == request.auth.uid;
       }
     }
+
+    // ---------------------------------------------------------------------------
+    // RAG Chunks — embedding vectors written by Firebase Admin SDK (server-side).
+    // Client SDK access is intentionally denied for ALL operations.
+    // The server uses Admin SDK which bypasses these rules entirely.
+    // This rule is documented here for clarity and audit purposes only.
+    // ---------------------------------------------------------------------------
+    match /rag_chunks/{chunkId} {
+      allow read, write: if false; // Server-only via Admin SDK
+    }
   }
 }

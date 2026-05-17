@@ -13,6 +13,7 @@ import {
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { semanticSearch, ContractAnalysis, generateJson, generateText } from '../services/geminiService';
+import { ragQuery, getRagStatus, RagQueryResult } from '../services/ragService';
 import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRef } from 'react';
@@ -31,8 +32,13 @@ export default function ContractDetail() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState<string | null>(null);
+  const [searchSources, setSearchSources] = useState<RagQueryResult['sources']>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(!!id);
+
+  // RAG indexing state
+  const [ragStatus, setRagStatus] = useState<'idle' | 'indexing' | 'indexed' | 'error'>('idle');
+  const [ragChunkCount, setRagChunkCount] = useState(0);
 
   const initialAnalysis = location.state?.analysis as ContractAnalysis | undefined;
 
@@ -408,6 +414,19 @@ export default function ContractDetail() {
     }
   }, [id, initialAnalysis]);
 
+  // Check RAG indexing status when a contract ID is available
+  useEffect(() => {
+    if (!id) return;
+    getRagStatus(id)
+      .then(status => {
+        if (status.indexed) {
+          setRagStatus('indexed');
+          setRagChunkCount(status.chunkCount);
+        }
+      })
+      .catch(() => { /* silent – status is best-effort */ });
+  }, [id]);
+
   const [activeTab, setActiveTab] = useState<'document' | 'overview' | 'clauses' | 'parties' | 'updates'>('document');
   const mainTabs = [
     { id: 'document', label: 'Document', icon: FileText },
@@ -549,13 +568,22 @@ export default function ContractDetail() {
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
+    setSearchSources([]);
     try {
-      const context = analysis.rawText || document.querySelector('section.flex-1')?.textContent || '';
-      const result = await semanticSearch(searchQuery, context);
-      setSearchResult(result);
-    } catch (err) {
-      console.error(err);
-      setSearchResult('Error processing query.');
+      // Use RAG query for grounded, cited answers
+      const ragResult = await ragQuery(searchQuery, id || undefined);
+      setSearchResult(ragResult.answer);
+      setSearchSources(ragResult.sources || []);
+    } catch {
+      // Fallback to legacy semantic search if RAG fails
+      try {
+        const context = analysis.rawText || '';
+        const result = await semanticSearch(searchQuery, context);
+        setSearchResult(result);
+      } catch (err) {
+        console.error(err);
+        setSearchResult('Error processing query.');
+      }
     } finally {
       setIsSearching(false);
     }
@@ -1469,55 +1497,101 @@ export default function ContractDetail() {
           </AnimatePresence>
         </div>
 
-        {/* Neural Search - Always visible footer logic */}
+        {/* Neural Search — RAG-powered floating panel */}
         <div className="fixed bottom-12 right-12 z-50">
-           <AnimatePresence>
-              {searchResult && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                  className="mb-6 p-8 bg-primary text-white rounded-[40px] text-sm font-medium leading-relaxed shadow-2xl border border-white/10 w-[420px] relative group"
-                >
-                  <button 
-                    onClick={() => setSearchResult(null)}
-                    className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-xl transition-colors"
-                  >
-                    <X className="h-5 w-5 text-white/40" />
-                  </button>
-                  <div className="flex items-center gap-3 mb-4">
-                    <Sparkles className="h-5 w-5 text-secondary animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-secondary">Neural Insight Extraction</span>
+          <AnimatePresence>
+            {searchResult && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="mb-6 bg-surface border border-outline/20 rounded-[32px] shadow-2xl w-[440px] overflow-hidden"
+              >
+                {/* Answer header */}
+                <div className="p-6 pb-4 bg-primary">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-secondary animate-pulse" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-secondary">RAG Neural Answer</span>
+                    </div>
+                    <button
+                      onClick={() => { setSearchResult(null); setSearchSources([]); }}
+                      className="p-1.5 hover:bg-white/10 rounded-xl transition-colors"
+                    >
+                      <X className="h-4 w-4 text-white/60" />
+                    </button>
                   </div>
-                  {searchResult}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <p className="text-sm text-white/90 font-medium leading-relaxed">{searchResult}</p>
+                </div>
+                {/* Source citations */}
+                {searchSources.length > 0 && (
+                  <div className="p-4 space-y-2 border-t border-outline/10 bg-surface-container-low/50">
+                    <p className="text-[8px] font-black uppercase tracking-[0.3em] text-on-surface/30 mb-3">Source Excerpts ({searchSources.length})</p>
+                    {searchSources.slice(0, 3).map((src, i) => (
+                      <div key={src.chunkId} className="p-3 bg-surface rounded-2xl border border-outline/10">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                          <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest">Excerpt {i + 1} — {src.score}% match</span>
+                        </div>
+                        <p className="text-[11px] text-on-surface/60 leading-relaxed line-clamp-2">{src.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            <div className="group relative">
-               <div className="absolute -inset-1 bg-gradient-to-r from-primary to-secondary rounded-[32px] blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-               <div className="relative flex items-center gap-3 bg-surface p-2 rounded-[32px] border border-outline shadow-2xl w-[420px]">
-                  <div className="p-3 bg-primary/5 rounded-2xl">
-                     <Sparkles className="h-5 w-5 text-primary" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Ask AI Engine about document nodes..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    className="flex-1 bg-transparent border-none outline-none text-[11px] font-black text-primary placeholder:text-primary/20 uppercase tracking-widest disabled:opacity-50"
-                    disabled={isSearching}
-                  />
-                  <button 
-                    onClick={handleSearch}
-                    disabled={isSearching}
-                    className="p-3 bg-primary text-white rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-                  >
-                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </button>
-               </div>
+          {/* RAG Status Badge */}
+          <AnimatePresence>
+            {ragStatus === 'indexing' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="mb-3 flex items-center gap-2 px-4 py-2 bg-surface border border-outline/20 rounded-full shadow-lg w-fit ml-auto"
+              >
+                <Loader2 className="h-3 w-3 text-primary animate-spin" />
+                <span className="text-[9px] font-black text-primary uppercase tracking-widest">Indexing Document...</span>
+              </motion.div>
+            )}
+            {ragStatus === 'indexed' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="mb-3 flex items-center gap-2 px-4 py-2 bg-success/10 border border-success/20 rounded-full shadow-sm w-fit ml-auto"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                <span className="text-[9px] font-black text-success uppercase tracking-widest">RAG Active · {ragChunkCount} Chunks</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="group relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-secondary rounded-[32px] blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative flex items-center gap-3 bg-surface p-2 rounded-[32px] border border-outline shadow-2xl w-[440px]">
+              <div className="p-3 bg-primary/5 rounded-2xl">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <input
+                type="text"
+                placeholder={ragStatus === 'indexed' ? 'Ask AI about this document (RAG)...' : 'Ask AI Engine about document nodes...'}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="flex-1 bg-transparent border-none outline-none text-[11px] font-black text-primary placeholder:text-primary/20 uppercase tracking-widest disabled:opacity-50"
+                disabled={isSearching}
+              />
+              <button
+                onClick={handleSearch}
+                disabled={isSearching}
+                className="p-3 bg-primary text-white rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+              >
+                {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
             </div>
+          </div>
         </div>
       </main>
 

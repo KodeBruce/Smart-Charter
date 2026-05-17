@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Upload, FileText, CheckCircle2, AlertCircle, Loader2, Sparkles, Activity } from 'lucide-react';
 import { analyzeContract, ContractAnalysis } from '../services/geminiService';
+import { ragIngest } from '../services/ragService';
 import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
 import { doc, setDoc, deleteDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { PlaybookSelector, PLAYBOOKS, type Playbook } from './PlaybookSelector';
@@ -12,7 +13,8 @@ const LOADING_STAGES = [
   { label: 'Extracting Legal Clauses', detail: 'Parsing text and identifying structural nodes...' },
   { label: 'Analyzing Risk Vectors', detail: 'Scoring implications and missing protections...' },
   { label: 'Corroborating Findings', detail: 'Validating against global legal standards...' },
-  { label: 'Finalizing Smart Record', detail: 'Indexing document in your secure vault...' }
+  { label: 'Finalizing Smart Record', detail: 'Securing document in your vault...' },
+  { label: 'Building RAG Index', detail: 'Embedding document chunks for semantic retrieval...' }
 ];
 
 interface IngestModalProps {
@@ -141,6 +143,20 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
         }
       }
 
+      // RAG Indexing — background ingestion for semantic retrieval
+      // This runs after the contract is saved; errors are non-fatal.
+      setLoadingStage(LOADING_STAGES.length - 1); // Show RAG stage
+      try {
+        await ragIngest(file, contractId, {
+          jurisdiction: analysis.jurisdiction || undefined,
+          docType: analysis.name?.split('.').pop() || undefined,
+        });
+        console.log(`[RAG] Document ${contractId} indexed successfully.`);
+      } catch (ragErr) {
+        // RAG indexing failure is non-fatal — the contract is still saved
+        console.warn('[RAG] Background indexing failed (non-fatal):', ragErr);
+      }
+
       setProgress(100);
       setIsUploading(false);
       setShowSuccess(true);
@@ -254,7 +270,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, projectId }: I
                     transition={{ delay: 0.2 }}
                     className="text-on-surface-variant/60 text-[10px] font-bold uppercase tracking-[0.2em]"
                   >
-                    Document successfully secured in your vault
+                    Document secured &amp; RAG index built
                   </motion.p>
                 </div>
               </div>
