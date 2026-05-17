@@ -33,11 +33,25 @@ export interface RagSource {
   chunkIndex: number;
 }
 
+export interface RagAuditTrail {
+  systemPrompt: string;
+  exactUserPrompt: string;
+  retrievedChunks: {
+    index: number;
+    text: string;
+    score: number;
+    docId: string;
+    chunkIndex: number;
+  }[];
+  timestamp: string;
+}
+
 export interface RagQueryResult {
   answer: string;
   sources: RagSource[];
   model: 'rag' | 'fallback';
   indexed: boolean;
+  auditTrail?: RagAuditTrail;
 }
 
 export interface RagStatusResult {

@@ -108,14 +108,16 @@ export default function Dashboard() {
     document.body.removeChild(link);
   };
 
-  const filteredContracts = contracts.filter(c => {
-    const matchesSearch = !searchQuery || c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || c.counterparty?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = activeFilter === 'all' 
-      || (activeFilter === 'Review Required' ? c.status === 'Review Required' : 
-          activeFilter === 'Unassigned' ? !c.projectId : 
-          c.riskLevel === activeFilter);
-    return matchesSearch && matchesFilter;
-  });
+  const filteredContracts = contracts
+    .filter(c => {
+      const matchesSearch = !searchQuery || c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || c.counterparty?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter = activeFilter === 'all' 
+        || (activeFilter === 'Review Required' ? c.status === 'Review Required' : 
+            activeFilter === 'Unassigned' ? !c.projectId : 
+            c.riskLevel === activeFilter);
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
 
   const totalPages = Math.ceil(filteredContracts.length / pageSize);
   const paginatedContracts = filteredContracts.slice((currentPage - 1) * pageSize, currentPage * pageSize);

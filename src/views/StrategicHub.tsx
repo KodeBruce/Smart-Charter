@@ -3,10 +3,11 @@ import {
   Zap, Clock, ShieldCheck, Target, 
   GitPullRequest, MessageSquare, AlertCircle,
   ChevronRight, ArrowRight, BarChart3,
-  Calendar, Shield, Globe, Scale, Sparkles, X, RefreshCw
+  Calendar, Shield, Globe, Scale, Sparkles, X, RefreshCw,
+  Minimize2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateText } from '../services/geminiService';
+import { generateText, generateJson } from '../services/geminiService';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
@@ -20,6 +21,7 @@ interface SentinelEvent {
   time: string;
   agent: string;
   source?: 'live' | 'ai-generated';
+  impactedContracts?: number;
 }
 
 interface RedlineSuggestion {
@@ -51,6 +53,22 @@ interface ComplianceItem {
   detail: string;
   sources: string[];
   contract: string;
+}
+
+interface ActiveNotification {
+  id: string;
+  taskId: string;
+  title: string;
+  message: string;
+  type: 'success' | 'info' | 'error';
+}
+
+interface NeuralTask {
+  id: string;
+  title: string;
+  context: string;
+  status: 'running' | 'completed' | 'failed';
+  insight: any | null;
 }
 
 export default function StrategicHub() {
@@ -144,33 +162,186 @@ export default function StrategicHub() {
   }, []);
 
   // ─── Sentinel Feed (real news API) ────────────────────────────────────────
-  const [liveAgentFeed, setLiveAgentFeed] = useState<SentinelEvent[]>([
-    { id: 1, jurisdiction: 'EU / Brussels', event: 'AI Act Final Text Published', impact: 'High', time: '2m ago', agent: 'Sentinel-Alpha', source: 'ai-generated' },
-    { id: 2, jurisdiction: 'USA / Delaware', event: 'Corporate Transparency Update', impact: 'Medium', time: '14m ago', agent: 'Sentinel-Beta', source: 'ai-generated' },
-    { id: 3, jurisdiction: 'UK / London', event: 'New Digital Markets Bill Clause', impact: 'Low', time: '1h ago', agent: 'Sentinel-Gamma', source: 'ai-generated' }
-  ]);
+  const [liveAgentFeed, setLiveAgentFeed] = useState<SentinelEvent[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [feedSource, setFeedSource] = useState<'live' | 'ai-generated'>('ai-generated');
+
+  // Background Neural Task Queue state
+  const [neuralTasks, setNeuralTasks] = useState<NeuralTask[]>([]);
+  const [notifications, setNotifications] = useState<ActiveNotification[]>([]);
 
   const [intelligenceModal, setIntelligenceModal] = useState<{
     isOpen: boolean;
     title: string;
     context: string;
-    insight: string | null;
+    insight: any | null;
+    taskId: string;
   } | null>(null);
 
-  const fetchNeuralInsight = async (title: string, context: string) => {
-    setIntelligenceModal({ isOpen: true, title, context, insight: null });
+  const playSuccessSound = () => {
     try {
-      const prompt = `As a senior legal intelligence agent, provide a corroborated deep-dive insight for: "${title}". 
-      CONTEXT: ${context}. 
-      Explain the jurisdictional impact, legal precedent, and strategic recommendation. 
-      Use professional, high-density language. Avoid generic advice.`;
-      const systemInstruction = "You are the Smart Charter Jurisdictional Sentinel. Your goal is to provide corroborated legal intelligence with specific references to global laws and standards.";
-      const text = await generateText(prompt, systemInstruction);
-      setIntelligenceModal(prev => prev ? { ...prev, insight: text } : null);
-    } catch {
-      setIntelligenceModal(prev => prev ? { ...prev, insight: "Failed to synchronize with intelligence nodes. Please retry." } : null);
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+      osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12); // E6
+      
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.25);
+    } catch (e) {
+      console.error("Audio Context blocked or not supported", e);
+    }
+  };
+
+  const fetchNeuralInsight = async (title: string, context: string, existingTaskId?: string) => {
+    let taskId = existingTaskId;
+    
+    // Find if task already exists
+    let existingTask = neuralTasks.find(t => t.id === taskId);
+    
+    if (!existingTask) {
+      taskId = `${title.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
+      const newTask: NeuralTask = {
+        id: taskId,
+        title,
+        context,
+        status: 'running',
+        insight: null
+      };
+      setNeuralTasks(prev => [newTask, ...prev]);
+      
+      // Open the modal immediately in loading status
+      setIntelligenceModal({ isOpen: true, title, context, insight: null, taskId });
+      
+      // Run generation task in background
+      runBackgroundCorroboration(newTask);
+    } else {
+      // Open the modal with task's current status (could be completed or running)
+      setIntelligenceModal({ 
+        isOpen: true, 
+        title: existingTask.title, 
+        context: existingTask.context, 
+        insight: existingTask.insight,
+        taskId: existingTask.id 
+      });
+      
+      if (existingTask.status === 'failed') {
+        // Auto-retry if previously failed
+        setNeuralTasks(prev => prev.map(t => t.id === existingTask.id ? { ...t, status: 'running', insight: null } : t));
+        runBackgroundCorroboration({ ...existingTask, status: 'running', insight: null });
+      }
+    }
+  };
+
+  const runBackgroundCorroboration = async (task: NeuralTask) => {
+    try {
+      const prompt = `Perform an expert, multi-jurisdictional legal corroboration and alignment analysis for: "${task.title}".
+      CONTEXT: ${task.context}.
+      
+      You must evaluate and detail the risk profile, key governing statutes across multiple jurisdictions (US, EU, UK, RSA, etc.), relevant legal case precedents, and clear step-by-step remediation suggestions.`;
+
+      const schema = {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          strategicImplication: { type: "string" },
+          jurisdictions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                law: { type: "string" },
+                status: { type: "string" }, // "Aligned" | "Warning" | "Critical"
+                detail: { type: "string" }
+              },
+              required: ["name", "law", "status", "detail"]
+            }
+          },
+          precedents: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                case: { type: "string" },
+                impact: { type: "string" }
+              },
+              required: ["case", "impact"]
+            }
+          },
+          remediations: {
+            type: "array",
+            items: { type: "string" }
+          }
+        },
+        required: ["summary", "strategicImplication", "jurisdictions", "precedents", "remediations"]
+      };
+
+      const systemInstruction = "You are the Smart Charter Jurisdictional Sentinel. Your goal is to provide corroborated, structural legal intelligence in JSON format with specific references to global laws, precedents, and step-by-step remediations.";
+      
+      const result = await generateJson(prompt, schema, systemInstruction);
+      
+      // Update task in tracker queue
+      setNeuralTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'completed', insight: result } : t));
+      
+      // Live update active modal if currently showing this task
+      let modalIsOpenForThisTask = false;
+      setIntelligenceModal(prev => {
+        if (prev && prev.taskId === task.id) {
+          modalIsOpenForThisTask = true;
+          return { ...prev, insight: result };
+        }
+        return prev;
+      });
+
+      // Play success chirp
+      playSuccessSound();
+
+      // If they minimized it, throw a gorgeous glassmorphic notification toast
+      if (!modalIsOpenForThisTask) {
+        const notifId = `notif-${Date.now()}`;
+        const newNotif: ActiveNotification = {
+          id: notifId,
+          taskId: task.id,
+          title: "Corroboration Completed",
+          message: `Sentinel Agent completed background legal analysis for "${task.title}".`,
+          type: 'success'
+        };
+        setNotifications(prev => [newNotif, ...prev]);
+
+        // Auto-dismiss after 6.5 seconds
+        setTimeout(() => {
+          setNotifications(prev => prev.filter(n => n.id !== notifId));
+        }, 6500);
+      }
+
+    } catch (err) {
+      console.error(err);
+      const fallbackInsight = {
+        summary: "Analysis connection interrupted.",
+        strategicImplication: "Please check your network and attempt synchronization again.",
+        jurisdictions: [
+          { name: "Global Standard", law: "General Law", status: "Warning", detail: "Fallback context activated due to synchronization failure." }
+        ],
+        precedents: [],
+        remediations: ["Retry the neural corroboration request."]
+      };
+      
+      setNeuralTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'failed', insight: fallbackInsight } : t));
+      
+      setIntelligenceModal(prev => {
+        if (prev && prev.taskId === task.id) {
+          return { ...prev, insight: fallbackInsight };
+        }
+        return prev;
+      });
     }
   };
 
@@ -198,7 +369,8 @@ export default function StrategicHub() {
         impact: item.impact as 'Low' | 'Medium' | 'High',
         agent: item.agent,
         time: 'Just now',
-        source
+        source,
+        impactedContracts: item.impactedContracts
       }));
 
       if (newEvents.length > 0) {
@@ -210,6 +382,15 @@ export default function StrategicHub() {
       setIsDiscovering(false);
     }
   };
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        discoverNewEvent();
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
 
   return (
@@ -405,9 +586,13 @@ export default function StrategicHub() {
               ) : (
               <div className="space-y-4">
                 {complianceRadar.map((item) => (
-                  <div key={item.id} className="relative py-6 flex items-center justify-between group border-b border-outline/5 hover:bg-on-surface/[0.02] transition-all px-4 -mx-4 rounded-xl">
-                    <div className="flex items-center gap-6">
-                      <div className="relative w-12 h-12">
+                  <div 
+                    key={item.id} 
+                    onClick={() => fetchNeuralInsight(item.standard, item.detail)}
+                    className="relative py-6 flex items-center justify-between group border-b border-outline/5 hover:bg-on-surface/[0.03] active:scale-[0.99] cursor-pointer transition-all px-4 -mx-4 rounded-xl"
+                  >
+                    <div className="flex items-center gap-6 min-w-0 flex-1 mr-4">
+                      <div className="relative w-12 h-12 shrink-0">
                         <svg className="w-12 h-12 -rotate-90">
                           <circle cx="24" cy="24" r="20" fill="none" strokeWidth="2" className="stroke-outline/10" />
                           <circle cx="24" cy="24" r="20" fill="none" strokeWidth="2" 
@@ -418,9 +603,9 @@ export default function StrategicHub() {
                         </svg>
                         <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black">{item.score}%</span>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-on-surface mb-1">{item.standard}</h4>
-                        <p className="text-[11px] text-on-surface/50 mb-2">{item.detail}</p>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-semibold text-on-surface mb-1 truncate">{item.standard}</h4>
+                        <p className="text-[11px] text-on-surface/50 mb-2 break-words line-clamp-2">{item.detail}</p>
                         <div className="flex gap-3">
                           {item.sources.map((s, i) => (
                             <span key={i} className="text-[8px] font-bold text-primary/60 uppercase tracking-widest border-b border-primary/20 pb-0.5">{s}</span>
@@ -429,18 +614,15 @@ export default function StrategicHub() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <button 
-                        onClick={() => fetchNeuralInsight(item.standard, item.detail)}
-                        className="p-2 bg-surface-container rounded-lg border border-outline/20 text-primary/40 hover:text-primary transition-all"
-                      >
+                      <div className="p-2 bg-surface-container rounded-lg border border-outline/20 text-primary/40 group-hover:text-primary group-hover:bg-primary/5 transition-all">
                         <Sparkles className="h-3.5 w-3.5" />
-                      </button>
+                      </div>
                       <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
                         item.status === 'Aligned' ? 'bg-success/10 text-success' : item.status === 'Warning' ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary'
                       }`}>
                         {item.status}
                       </span>
-                      <ArrowRight className="h-4 w-4 text-on-surface/20 group-hover:text-primary transition-all" />
+                      <ArrowRight className="h-4 w-4 text-on-surface/20 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </div>
                   </div>
                 ))}
@@ -498,6 +680,64 @@ export default function StrategicHub() {
           </div>
         </div>
 
+        {/* Background Neural Tasks Tracker */}
+        {neuralTasks.length > 0 && (
+          <div className="px-8 py-6 border-b border-outline/10 bg-primary/[0.01]">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/50">Agent Task Tracker</span>
+              <span className="text-[8px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">
+                {neuralTasks.filter(t => t.status === 'running').length} ACTIVE
+              </span>
+            </div>
+            <div className="space-y-3 max-h-[180px] overflow-y-auto custom-scrollbar">
+              {neuralTasks.map((task) => (
+                <div 
+                  key={task.id} 
+                  onClick={() => fetchNeuralInsight(task.title, task.context, task.id)}
+                  className="p-3.5 bg-surface border border-outline/10 hover:border-primary/25 hover:bg-primary/[0.01] cursor-pointer rounded-2xl transition-all flex items-center justify-between gap-3 active:scale-[0.98] group"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-on-surface group-hover:text-primary transition-colors truncate">{task.title}</p>
+                    <p className="text-[8px] font-bold text-on-surface/40 uppercase tracking-wider mt-0.5 flex items-center gap-1.5">
+                      {task.status === 'running' ? (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                          <span>Running in background</span>
+                        </>
+                      ) : task.status === 'completed' ? (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                          <span className="text-success">Insight ready • view report</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-error" />
+                          <span className="text-error">sync failed • retry</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center shrink-0">
+                    {task.status === 'running' ? (
+                      <div className="relative flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                      </div>
+                    ) : task.status === 'completed' ? (
+                      <div className="w-5 h-5 rounded-full bg-success/10 border border-success/20 flex items-center justify-center text-[9px] text-success font-black group-hover:scale-105 active:scale-95 transition-all">
+                        ✓
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-error/10 border border-error/20 flex items-center justify-center text-[9px] text-error font-black">
+                        !
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
           <p className="text-[9px] font-bold uppercase tracking-widest text-on-surface/30 mb-6">Active Intelligence Feed</p>
           <div className="space-y-8">
@@ -520,6 +760,14 @@ export default function StrategicHub() {
                     <Sparkles className="h-2.5 w-2.5" />
                   </button>
                 </div>
+                {event.impactedContracts && event.impactedContracts > 0 ? (
+                  <div className="mt-2 flex items-center gap-2 p-1.5 bg-error/10 border border-error/20 rounded-md">
+                    <AlertCircle className="h-3 w-3 text-error" />
+                    <span className="text-[9px] font-bold text-error uppercase tracking-widest">
+                      {event.impactedContracts} Contract{event.impactedContracts > 1 ? 's' : ''} Impacted
+                    </span>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -543,55 +791,211 @@ export default function StrategicHub() {
       {/* Neural Insight Modal */}
       <AnimatePresence>
         {intelligenceModal?.isOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-2xl bg-surface border border-outline/20 rounded-[32px] overflow-hidden shadow-2xl"
+              className={`w-full ${!intelligenceModal.insight ? 'max-w-md' : 'max-w-4xl'} bg-surface border border-outline/20 rounded-[32px] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] min-h-0 transition-all duration-300 ease-out`}
             >
-              <div className="p-8 border-b border-outline/10 flex items-center justify-between bg-surface-container-low">
+              {/* Header */}
+              <div className={`border-b border-outline/10 flex items-center justify-between bg-surface-container-low shrink-0 ${!intelligenceModal.insight ? 'p-6' : 'p-8'}`}>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/5 rounded-xl">
-                    <Sparkles className="h-4 w-4 text-primary" />
+                  <div className="p-2 bg-primary/5 rounded-xl border border-primary/10">
+                    <Sparkles className="h-4 w-4 text-primary animate-pulse" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black tracking-tight text-on-surface">{intelligenceModal.title}</h2>
-                    <p className="text-[10px] font-bold text-primary/40 uppercase tracking-widest">Agent Corroborated Deep-Dive</p>
+                    <h2 className={`font-black tracking-tight text-on-surface leading-tight ${!intelligenceModal.insight ? 'text-sm sm:text-base' : 'text-lg sm:text-xl'}`}>{intelligenceModal.title}</h2>
+                    <p className="text-[8px] font-black text-primary uppercase tracking-[0.2em] mt-0.5">Sentinel Corroboration</p>
                   </div>
                 </div>
-                <button onClick={() => setIntelligenceModal(null)} className="p-2 hover:bg-surface-container rounded-full transition-colors">
-                  <X className="h-4 w-4 text-on-surface/40" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setIntelligenceModal(null)} 
+                    title="Minimize to Sidebar Tracker"
+                    className="p-1.5 hover:bg-surface-container text-on-surface/45 hover:text-primary rounded-xl transition-all flex items-center justify-center gap-1 active:scale-95 border border-transparent hover:border-primary/10 hover:bg-primary/5"
+                  >
+                    <Minimize2 className="h-3.5 w-3.5" />
+                    <span className="text-[8px] font-black uppercase tracking-wider hidden sm:inline">Minimize</span>
+                  </button>
+                  <button 
+                    onClick={() => setIntelligenceModal(null)} 
+                    className="p-1.5 hover:bg-surface-container text-on-surface/40 hover:text-on-surface rounded-full transition-colors active:scale-95"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
-              <div className="p-8 space-y-6">
+
+              {/* Body */}
+              <div className={`overflow-y-auto custom-scrollbar flex-1 min-h-0 bg-surface-container-lowest/20 ${!intelligenceModal.insight ? 'p-6' : 'p-8 space-y-8'}`}>
                 {!intelligenceModal.insight ? (
-                  <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="flex flex-col items-center justify-center py-12 gap-4">
                     <div className="h-6 w-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                    <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] animate-pulse">Synchronizing with Global Nodes...</p>
+                    <p className="text-[10px] font-black text-primary/50 uppercase tracking-[0.2em] animate-pulse">Synchronizing with Global Nodes...</p>
                   </div>
                 ) : (
                   <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="prose prose-sm prose-invert max-w-none text-on-surface/80 leading-relaxed font-medium text-sm whitespace-pre-wrap"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-8 min-h-0"
                   >
-                    {intelligenceModal.insight}
+                    {/* Executive Insights Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="p-6 rounded-2xl bg-primary/[0.03] border border-primary/10 hover:border-primary/20 transition-all">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Target className="h-4 w-4 text-primary" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Executive Summary</span>
+                        </div>
+                        <p className="text-xs text-on-surface/80 leading-relaxed font-semibold break-words whitespace-pre-wrap">
+                          {intelligenceModal.insight.summary}
+                        </p>
+                      </div>
+                      <div className="p-6 rounded-2xl bg-error/[0.02] border border-error/10 hover:border-error/20 transition-all">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertCircle className="h-4 w-4 text-error" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-error">Strategic Risk Exposure</span>
+                        </div>
+                        <p className="text-xs text-on-surface/80 leading-relaxed font-semibold break-words whitespace-pre-wrap">
+                          {intelligenceModal.insight.strategicImplication}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Jurisdictional Alignment Map */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-3.5 w-3.5 text-on-surface/40" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Jurisdictional Compliance Alignment</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {intelligenceModal.insight.jurisdictions.map((j: any, idx: number) => (
+                          <div key={idx} className="p-5 rounded-2xl bg-surface-container border border-outline/10 hover:border-outline/20 hover:bg-surface-container/80 transition-all">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-xs font-bold text-on-surface">{j.name}</span>
+                              <span className={`text-[8px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                                j.status === 'Aligned' ? 'bg-success/10 text-success' :
+                                j.status === 'Warning' ? 'bg-warning/10 text-warning' :
+                                'bg-error/10 text-error'
+                              }`}>
+                                {j.status}
+                              </span>
+                            </div>
+                            <div className="mb-3">
+                              <span className="text-[8px] font-mono font-bold bg-primary/5 text-primary/80 border border-primary/10 px-2 py-0.5 rounded uppercase">
+                                {j.law}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-on-surface/60 leading-relaxed break-words whitespace-pre-wrap">{j.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Precedents Section */}
+                    {intelligenceModal.insight.precedents && intelligenceModal.insight.precedents.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Scale className="h-3.5 w-3.5 text-on-surface/40" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Landmark Legal Precedents</span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4">
+                          {intelligenceModal.insight.precedents.map((p: any, idx: number) => (
+                            <div key={idx} className="p-5 rounded-2xl bg-surface-container-low border border-outline/5 hover:border-outline/15 transition-all">
+                              <h4 className="text-xs font-bold text-on-surface/90 mb-2 break-words">{p.case}</h4>
+                              <p className="text-[11px] text-on-surface/60 leading-relaxed break-words whitespace-pre-wrap">{p.impact}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Remediations Checklist */}
+                    {intelligenceModal.insight.remediations && intelligenceModal.insight.remediations.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Strategic Alignment checklist</span>
+                        </div>
+                        <div className="p-6 rounded-2xl bg-success/[0.01] border border-success/10 space-y-4">
+                          {intelligenceModal.insight.remediations.map((r: string, idx: number) => (
+                            <div key={idx} className="flex items-start gap-3.5 group">
+                              <div className="mt-0.5 w-4 h-4 rounded-lg bg-success/15 border border-success/30 flex items-center justify-center text-[8px] font-black text-success group-hover:scale-105 active:scale-95 transition-all shrink-0">
+                                ✓
+                              </div>
+                              <p className="text-xs text-on-surface/70 leading-relaxed font-semibold break-words whitespace-pre-wrap">{r}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </div>
-              <div className="p-8 bg-surface-container-low border-t border-outline/10 flex justify-end">
-                <button 
-                  onClick={() => setIntelligenceModal(null)}
-                  className="px-6 py-2 bg-primary text-on-primary rounded-xl text-[10px] font-black uppercase tracking-widest"
-                >
-                  Dismiss Insight
-                </button>
-              </div>
+
+              {/* Footer */}
+              {intelligenceModal.insight && (
+                <div className="p-8 bg-surface-container-low border-t border-outline/10 flex justify-between items-center shrink-0">
+                  <span className="text-[8px] font-bold text-on-surface/30 uppercase tracking-[0.2em]">Verified by Smart Charter Sentinel Agent Cluster</span>
+                  <button 
+                    onClick={() => setIntelligenceModal(null)}
+                    className="px-6 py-2 bg-primary text-on-primary hover:bg-primary-hover active:scale-95 transition-all rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/10"
+                  >
+                    Dismiss Insight
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      {/* Toast Notifications Stack */}
+      <div className="fixed bottom-6 right-6 z-[120] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
+        <AnimatePresence>
+          {notifications.map((n) => (
+            <motion.div
+              key={n.id}
+              initial={{ opacity: 0, y: 50, scale: 0.9, x: 50 }}
+              animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.9, x: 100, transition: { duration: 0.2 } }}
+              className="pointer-events-auto w-full bg-surface-container-high/90 border border-success/20 shadow-2xl p-4 rounded-2xl backdrop-blur-md flex items-start gap-3.5 relative overflow-hidden"
+            >
+              {/* Green Glow Bar on side */}
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-success" />
+              
+              <div className="p-2 bg-success/10 rounded-xl text-success shrink-0 mt-0.5">
+                <Sparkles className="h-4 w-4 text-success animate-pulse" />
+              </div>
+              
+              <div className="flex-1 min-w-0 pr-6">
+                <h4 className="text-xs font-black text-on-surface uppercase tracking-wider">{n.title}</h4>
+                <p className="text-[11px] text-on-surface/65 mt-1 leading-relaxed">{n.message}</p>
+                <button
+                  onClick={() => {
+                    const task = neuralTasks.find(t => t.id === n.taskId);
+                    if (task) {
+                      fetchNeuralInsight(task.title, task.context, task.id);
+                    }
+                    setNotifications(prev => prev.filter(notif => notif.id !== n.id));
+                  }}
+                  className="mt-3 text-[9px] font-black uppercase tracking-widest text-primary hover:text-primary-hover active:scale-95 transition-all flex items-center gap-1 group/btn"
+                >
+                  View Report
+                  <ArrowRight className="h-3 w-3 group-hover/btn:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+              
+              <button
+                onClick={() => setNotifications(prev => prev.filter(notif => notif.id !== n.id))}
+                className="absolute top-3 right-3 text-on-surface/30 hover:text-on-surface/65 transition-colors p-1"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

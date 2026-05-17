@@ -33,7 +33,9 @@ export default function ContractDetail() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState<string | null>(null);
   const [searchSources, setSearchSources] = useState<RagQueryResult['sources']>([]);
+  const [currentAuditTrail, setCurrentAuditTrail] = useState<RagQueryResult['auditTrail'] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [isGlobalSearch, setIsGlobalSearch] = useState(false);
   const [isLoading, setIsLoading] = useState(!!id);
 
   // RAG indexing state
@@ -41,6 +43,12 @@ export default function ContractDetail() {
   const [ragChunkCount, setRagChunkCount] = useState(0);
 
   const initialAnalysis = location.state?.analysis as ContractAnalysis | undefined;
+
+  // Playbook Redline State
+  const [playbookRedlines, setPlaybookRedlines] = useState<any[]>([]);
+  const [isGeneratingRedlines, setIsGeneratingRedlines] = useState(false);
+  const [isRedlineModalOpen, setIsRedlineModalOpen] = useState(false);
+  const [redlineError, setRedlineError] = useState<string | null>(null);
 
   const [isRemediationOpen, setIsRemediationOpen] = useState(false);
   const [selectedClause, setSelectedClause] = useState<any>(null);
@@ -569,11 +577,17 @@ export default function ContractDetail() {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     setSearchSources([]);
+    setCurrentAuditTrail(null);
     try {
-      // Use RAG query for grounded, cited answers
-      const ragResult = await ragQuery(searchQuery, id || undefined);
+      // Use RAG query for grounded, cited answers.
+      // If isGlobalSearch is true, we pass undefined to search across ALL documents (including 'system' store)
+      const targetDocId = isGlobalSearch ? undefined : (id || undefined);
+      const ragResult = await ragQuery(searchQuery, targetDocId);
       setSearchResult(ragResult.answer);
       setSearchSources(ragResult.sources || []);
+      if (ragResult.auditTrail) {
+        setCurrentAuditTrail(ragResult.auditTrail);
+      }
     } catch {
       // Fallback to legacy semantic search if RAG fails
       try {
@@ -589,8 +603,85 @@ export default function ContractDetail() {
     }
   };
 
+  const exportAuditReport = () => {
+    if (!currentAuditTrail) return;
+    
+    const lines = [
+      `# Smart Charter AI — Explainable AI Audit Reasoning Report`,
+      `Generated: ${new Date(currentAuditTrail.timestamp).toLocaleString()}`,
+      `Document ID: ${id || 'Global Search'}`,
+      `Document Name: ${analysis.name || 'Global Corpus'}`,
+      `Jurisdiction Context: ${targetJurisdiction}`,
+      `Model Utilized: Gemini 2.0 Flash`,
+      ``,
+      `## 1. USER QUERY`,
+      `"${searchQuery}"`,
+      ``,
+      `## 2. GROUNDED AI ANSWER`,
+      `"${searchResult}"`,
+      ``,
+      `## 3. EXACT SYSTEM PROMPT CONSTRUCTED (Anti-Hallucination Guardrails)`,
+      `\`\`\``,
+      currentAuditTrail.systemPrompt,
+      `\`\`\``,
+      ``,
+      `## 4. EXACT PROMPT & GROUNDED CONTEXT SUBMITTED TO LLM`,
+      `\`\`\``,
+      currentAuditTrail.exactUserPrompt,
+      `\`\`\``,
+      ``,
+      `## 5. SEMANTIC RAG RETRIEVED CHUNKS (${currentAuditTrail.retrievedChunks.length} chunks)`,
+      currentAuditTrail.retrievedChunks.map(c => 
+        `### Excerpt ${c.index} (Similarity Score: ${c.score}%)\n*   **Source Document:** ${c.docId}\n*   **Chunk Index:** ${c.chunkIndex}\n\n**Retrieved Text Content:**\n> ${c.text}\n\n`
+      ).join('\n---\n\n'),
+      ``,
+      `## 6. COMPLIANCE & MALPRACTICE VERIFICATION STATEMENT`,
+      `This explainable AI reasoning manifest was programmatically compiled by the Smart Charter Audit Protocol. All grounding chunks retrieved are preserved in the platform's vector database. This manifest serves as legally verifiable proof of model grounding and compliance to prevent algorithmic hallucinations and satisfy malpractice compliance protocols.`,
+    ];
+
+    const markdown = lines.join('\n');
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `AI_Reasoning_Audit_Report_${id || 'Global'}.md`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const generatePlaybookRedlines = async () => {
+    if (!id) return;
+    setIsGeneratingRedlines(true);
+    setIsRedlineModalOpen(true);
+    setRedlineError(null);
+    setPlaybookRedlines([]);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Not authenticated");
+      const token = await user.getIdToken();
+      const res = await fetch('/api/rag/redline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ docId: id })
+      });
+      const data = await res.json();
+      if (res.ok && data.redlines) {
+        setPlaybookRedlines(data.redlines);
+      } else {
+        setRedlineError(data.error || "Failed to generate playbook redlines.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      setRedlineError(e?.message || "An unexpected error occurred while generating playbook redlines.");
+    } finally {
+      setIsGeneratingRedlines(false);
+    }
+  };
+
   const handleImplementAndSync = async () => {
     if (!selectedClause || !remediationInsight.remediatedLanguage) return;
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
 
     const remediatedText = remediationInsight.remediatedLanguage;
 
@@ -789,6 +880,13 @@ export default function ContractDetail() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4 shrink-0 justify-end">
+            <button
+              onClick={generatePlaybookRedlines}
+              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-secondary/10 hover:bg-secondary/20 border border-secondary/20 text-secondary text-[9px] font-black uppercase tracking-widest transition-all shadow-sm active:scale-95"
+            >
+              <Shield className="h-3.5 w-3.5" />
+              <span>Run Playbook Redline</span>
+            </button>
             <div className="relative" ref={exportDropdownRef}>
               <button
                 onClick={() => setShowExportDropdown(!showExportDropdown)}
@@ -1514,12 +1612,23 @@ export default function ContractDetail() {
                       <Sparkles className="h-4 w-4 text-secondary animate-pulse" />
                       <span className="text-[10px] font-black uppercase tracking-[0.3em] text-secondary">RAG Neural Answer</span>
                     </div>
-                    <button
-                      onClick={() => { setSearchResult(null); setSearchSources([]); }}
-                      className="p-1.5 hover:bg-white/10 rounded-xl transition-colors"
-                    >
-                      <X className="h-4 w-4 text-white/60" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {currentAuditTrail && (
+                        <button
+                          onClick={exportAuditReport}
+                          title="Export AI Audit Trail Report"
+                          className="p-1.5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center border border-white/5"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setSearchResult(null); setSearchSources([]); }}
+                        className="p-1.5 hover:bg-white/10 rounded-xl transition-all hover:scale-105 active:scale-95 text-white/60 hover:text-white"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                   <p className="text-sm text-white/90 font-medium leading-relaxed">{searchResult}</p>
                 </div>
@@ -1570,26 +1679,52 @@ export default function ContractDetail() {
 
           <div className="group relative">
             <div className="absolute -inset-1 bg-gradient-to-r from-primary to-secondary rounded-[32px] blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative flex items-center gap-3 bg-surface p-2 rounded-[32px] border border-outline shadow-2xl w-[440px]">
-              <div className="p-3 bg-primary/5 rounded-2xl">
-                <Sparkles className="h-5 w-5 text-primary" />
+            <div className="relative flex flex-col gap-2 bg-surface p-2 rounded-[32px] border border-outline shadow-2xl w-[440px]">
+              <div className="flex items-center gap-3 w-full">
+                <div className="p-3 bg-primary/5 rounded-2xl">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
+                <input
+                  type="text"
+                  placeholder={
+                    isGlobalSearch 
+                      ? 'Search all contracts & global data...' 
+                      : (ragStatus === 'indexed' ? 'Ask AI about this document (RAG)...' : 'Ask AI Engine about document nodes...')
+                  }
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="flex-1 bg-transparent border-none outline-none text-[11px] font-black text-primary placeholder:text-primary/20 uppercase tracking-widest disabled:opacity-50"
+                  disabled={isSearching}
+                />
+                <button
+                  onClick={handleSearch}
+                  disabled={isSearching}
+                  className="p-3 bg-primary text-white rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                >
+                  {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </button>
               </div>
-              <input
-                type="text"
-                placeholder={ragStatus === 'indexed' ? 'Ask AI about this document (RAG)...' : 'Ask AI Engine about document nodes...'}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="flex-1 bg-transparent border-none outline-none text-[11px] font-black text-primary placeholder:text-primary/20 uppercase tracking-widest disabled:opacity-50"
-                disabled={isSearching}
-              />
-              <button
-                onClick={handleSearch}
-                disabled={isSearching}
-                className="p-3 bg-primary text-white rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-              >
-                {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </button>
+              
+              {/* Global Search Toggle */}
+              <div className="px-4 pb-2 flex items-center justify-between">
+                <span className="text-[9px] font-black uppercase tracking-widest text-on-surface/50 flex items-center gap-1.5">
+                  <Globe className="h-3 w-3" />
+                  Global Corpus Search
+                </span>
+                <button
+                  onClick={() => setIsGlobalSearch(!isGlobalSearch)}
+                  className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${
+                    isGlobalSearch ? 'bg-primary' : 'bg-outline/20'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-3 w-3 transform rounded-full bg-surface transition-transform ${
+                      isGlobalSearch ? 'translate-x-4' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2111,6 +2246,94 @@ export default function ContractDetail() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Playbook Redline Modal */}
+      <AnimatePresence>
+        {isRedlineModalOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsRedlineModalOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[640px] max-h-[85vh] overflow-y-auto bg-surface rounded-3xl p-6 z-[110] shadow-2xl border border-outline"
+            >
+              <div className="flex items-center justify-between mb-6 sticky top-0 bg-surface z-10 pb-4 border-b border-outline/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-primary tracking-tight">Playbook Redlines</h2>
+                    <p className="text-[9px] font-bold text-primary/40 uppercase tracking-widest leading-none">Automated Compliance Engine</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsRedlineModalOpen(false)}
+                  className="p-1.5 hover:bg-surface-container rounded-lg transition-colors border border-outline/30"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {isGeneratingRedlines ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <Loader2 className="h-8 w-8 text-secondary animate-spin" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface/50">Analyzing against Playbook...</p>
+                </div>
+              ) : redlineError ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <AlertCircle className="h-8 w-8 text-error" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-error/80 text-center px-6 leading-relaxed">
+                    {redlineError}
+                  </p>
+                </div>
+              ) : playbookRedlines.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <CheckCircle2 className="h-8 w-8 text-success" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface/50">Contract is fully compliant.</p>
+                </div>
+              ) : (
+                <div className="space-y-6 pb-6">
+                  {playbookRedlines.map((redline, idx) => (
+                    <div key={idx} className="p-4 bg-surface-container border border-outline/10 rounded-2xl">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle className={`h-4 w-4 ${redline.severity === 'High' ? 'text-error' : 'text-warning'}`} />
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${redline.severity === 'High' ? 'text-error' : 'text-warning'}`}>
+                          {redline.severity} Severity
+                        </span>
+                      </div>
+                      <div className="mb-4">
+                        <p className="text-[9px] font-bold text-primary/40 uppercase tracking-widest mb-1.5">Original Text</p>
+                        <p className="text-[11px] text-on-surface/60 italic line-through decoration-error/50 bg-error/5 p-2 rounded-lg">
+                          "{redline.originalText}"
+                        </p>
+                      </div>
+                      <div className="mb-4">
+                        <p className="text-[9px] font-bold text-primary/40 uppercase tracking-widest mb-1.5">Proposed Redline</p>
+                        <p className="text-[11px] text-success/90 font-medium bg-success/5 p-2 rounded-lg">
+                          "{redline.proposedText}"
+                        </p>
+                      </div>
+                      <div className="pt-3 border-t border-outline/10">
+                        <p className="text-[10px] text-on-surface/70">
+                          <span className="font-bold text-primary">Reasoning:</span> {redline.reasoning}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>

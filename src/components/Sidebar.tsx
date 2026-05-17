@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Files, ShieldAlert, Settings, Plus, HelpCircle, Moon, Sun, Search, FolderOpen, Mic, MicOff, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FileText, Files, ShieldAlert, Settings, Plus, HelpCircle, Moon, Sun, Search, FolderOpen, Mic, MicOff, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useFirebase } from '../lib/FirebaseProvider';
 import { useTheme } from '../contexts/ThemeContext';
@@ -34,6 +34,7 @@ export default function Sidebar() {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: FolderOpen, label: 'Projects', path: '/projects' },
+    { icon: Zap, label: 'Strategic Hub', path: '/strategic-hub' },
     { icon: Files, label: 'Document Comparison', path: '/compare' },
     { icon: ShieldAlert, label: 'Risk Playbook', path: '/risk' },
     { icon: Settings, label: 'Settings', path: '/settings' },
@@ -76,6 +77,7 @@ export default function Sidebar() {
             const targetId = item.label === 'Dashboard' ? 'walkthrough-dashboard' :
                           item.label === 'Projects' ? 'walkthrough-projects' : 
                           item.label === 'Repository' ? 'walkthrough-repository' :
+                          item.label === 'Strategic Hub' ? 'walkthrough-strategic' :
                           item.label === 'Document Comparison' ? 'walkthrough-compare' :
                           item.label === 'Risk Playbook' ? 'walkthrough-risk' :
                           item.label === 'Settings' ? 'walkthrough-settings' : undefined;
