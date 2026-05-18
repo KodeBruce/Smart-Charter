@@ -19,7 +19,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const toggleVoice = useCallback(() => {
     setIsListeningState(prev => !prev);
     // Dispatch event for components not using context (if any)
-    window.dispatchEvent(new CustomEvent('toggle-voice-control-internal'));
+    // Keep event name consistent across components
+    window.dispatchEvent(new CustomEvent('toggle-voice-control'));
   }, []);
 
   return (

@@ -264,85 +264,81 @@ export default function SpeechmaticsAssistant() {
     }
   });
   const draggingRef = useRef(false);
-  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
-  const dragPosRef = useRef<{ x: number; y: number } | null>(null);
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
 
   const resetLauncherPosition = () => {
-    setPosition(null);
-    try {
-      localStorage.removeItem('speechmaticsAssistantPos');
+        if (voicesNow && voicesNow.length) {
+          chosen = chosen || voicesNow.find(v => (v.lang || '').toLowerCase().startsWith('en')) || voicesNow.find(v => /english|us|united states|america|uk/i.test(v.name)) || voicesNow[0];
+        }
     } catch {}
   };
 
+  useEffect(() => {
+    return () => {
+      // cleanup any global listeners
+      window.removeEventListener('pointermove', onPointerMove as any);
+      window.removeEventListener('pointerup', onPointerUp as any);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const clampPosition = (x: number, y: number, rect: DOMRect) => {
     const minX = 8;
-    const minY = 8;
+        // Only set the voice if it looks English or clearly female-preferred; otherwise let browser choose best match
+        try {
+          if (chosen && ((chosen.lang || '').toLowerCase().startsWith('en') || /samantha|joanna|emma|olivia|ivy|aria|victoria/i.test(chosen.name || ''))) {
+            utterance.voice = chosen as any;
+          }
+        } catch {}
     const maxX = Math.max(8, window.innerWidth - rect.width - 8);
     const maxY = Math.max(8, window.innerHeight - rect.height - 8);
     return { x: Math.min(maxX, Math.max(minX, x)), y: Math.min(maxY, Math.max(minY, y)) };
   };
 
-  // Set up document-level drag listeners
-  useEffect(() => {
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!draggingRef.current || !dragStartRef.current || !containerRef.current) return;
-      
-      const dx = e.clientX - dragStartRef.current.x;
-      const dy = e.clientY - dragStartRef.current.y;
-      
-      const rect = containerRef.current.getBoundingClientRect();
-      const baseX = position?.x ?? rect.left;
-      const baseY = position?.y ?? rect.top;
-      
-      dragPosRef.current = clampPosition(baseX + dx, baseY + dy, rect);
-      
-      // Update DOM directly for smooth dragging without re-renders
-      if (containerRef.current) {
-        containerRef.current.style.left = `${dragPosRef.current.x}px`;
-        containerRef.current.style.top = `${dragPosRef.current.y}px`;
-      }
-    };
+  function onPointerMove(e: PointerEvent) {
+    if (!draggingRef.current) return;
+    const last = lastPointerRef.current;
+    if (!last) return;
+    const dx = e.clientX - last.x;
+    const dy = e.clientY - last.y;
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const prevX = position?.x ?? rect.left;
+    const prevY = position?.y ?? rect.top;
+    const next = clampPosition(prevX + dx, prevY + dy, rect);
+    lastPointerRef.current = { x: e.clientX, y: e.clientY };
+    setPosition(next);
+  }
 
-    const handlePointerUp = () => {
-      if (!draggingRef.current) return;
-      draggingRef.current = false;
-      
-      // Update state and localStorage with final position
-      if (dragPosRef.current) {
-        setPosition(dragPosRef.current);
-        try {
-          localStorage.setItem('speechmaticsAssistantPos', JSON.stringify(dragPosRef.current));
-        } catch {}
-      }
-      dragStartRef.current = null;
-      dragPosRef.current = null;
-    };
-
-    document.addEventListener('pointermove', handlePointerMove, false);
-    document.addEventListener('pointerup', handlePointerUp, false);
-
-    return () => {
-      document.removeEventListener('pointermove', handlePointerMove, false);
-      document.removeEventListener('pointerup', handlePointerUp, false);
-    };
-  }, [position]);
+  function onPointerUp() {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    lastPointerRef.current = null;
+    window.removeEventListener('pointermove', onPointerMove as any);
+    window.removeEventListener('pointerup', onPointerUp as any);
+    if (position) {
+      try {
+        localStorage.setItem('speechmaticsAssistantPos', JSON.stringify(position));
+      } catch {}
+    }
+  }
 
   const onPointerDown = (e: React.PointerEvent) => {
     // only left mouse or touch
     if (e.button && e.button !== 0) return;
     const el = containerRef.current;
     if (!el) return;
-
     const rect = el.getBoundingClientRect();
     // initialize position if not set
     if (!position) {
       setPosition({ x: rect.left, y: rect.top });
     }
-
     draggingRef.current = true;
-    dragStartRef.current = { x: e.clientX, y: e.clientY };
-    dragPosRef.current = position || { x: rect.left, y: rect.top };
-    (e.currentTarget as Element).setPointerCapture?.((e as any).pointerId);
+    lastPointerRef.current = { x: e.clientX, y: e.clientY };
+    window.addEventListener('pointermove', onPointerMove as any);
+    window.addEventListener('pointerup', onPointerUp as any);
+    (e.target as Element).setPointerCapture?.((e as any).pointerId);
   };
 
   const clearPendingAction = () => {
@@ -567,27 +563,20 @@ export default function SpeechmaticsAssistant() {
 
   const hasPosition = position !== null;
   const wrapperStyle: React.CSSProperties | undefined = hasPosition
-    ? { left: `${position!.x}px`, top: `${position!.y}px`, position: 'fixed' }
+    ? { left: position!.x, top: position!.y }
     : undefined;
 
   return (
     <div
       ref={containerRef}
       style={wrapperStyle}
-      className={hasPosition ? 'fixed z-40 pointer-events-auto max-w-[92vw]' : 'fixed bottom-6 right-6 z-40 pointer-events-auto max-w-[92vw]'}
+      className={hasPosition ? 'fixed z-[60] pointer-events-auto max-w-[92vw]' : 'fixed bottom-6 right-6 z-[60] pointer-events-auto max-w-[92vw]'}
     >
       <button
         type="button"
-        onPointerDown={onPointerDown}
-        onClick={() => {
-          // Only open panel if not dragging (check if position hasn't moved significantly)
-          if (!draggingRef.current) {
-            setIsPanelOpen(true);
-          }
-        }}
-        className="pointer-events-auto mb-3 inline-flex w-full items-center justify-between gap-3 rounded-full border border-secondary/25 bg-surface/95 px-3.5 py-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-on-surface/80 shadow-xl shadow-black/10 hover:bg-surface transition-colors cursor-grab active:cursor-grabbing"
-        style={{ touchAction: 'none', userSelect: 'none' }}
-        aria-label="Open Speechmatics voice assistant (or drag to move)"
+        onClick={() => setIsPanelOpen(true)}
+        className="pointer-events-auto mb-3 inline-flex w-full items-center justify-between gap-3 rounded-full border border-secondary/25 bg-surface/95 px-3.5 py-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-on-surface/80 shadow-xl shadow-black/10 hover:bg-surface transition-colors"
+        aria-label="Open Speechmatics voice assistant"
       >
         <span className="flex items-center gap-2 truncate">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary/12 text-secondary">

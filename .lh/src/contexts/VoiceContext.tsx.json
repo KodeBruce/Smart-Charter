@@ -1,0 +1,18 @@
+{
+    "sourceFile": "src/contexts/VoiceContext.tsx",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1779074607544,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1779074607544,
+            "name": "Commit-0",
+            "content": "import React, { createContext, useContext, useState, useCallback } from 'react';\r\n\r\nexport type VoiceLanguage = 'en' | 'es';\r\n\r\ninterface VoiceContextType {\r\n  isListening: boolean;\r\n  setIsListening: (value: boolean) => void;\r\n  toggleVoice: () => void;\r\n  voiceLanguage: VoiceLanguage;\r\n  setVoiceLanguage: (value: VoiceLanguage) => void;\r\n}\r\n\r\nconst VoiceContext = createContext<VoiceContextType | undefined>(undefined);\r\n\r\nexport function VoiceProvider({ children }: { children: React.ReactNode }) {\r\n  const [isListening, setIsListeningState] = useState(false);\r\n  const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>('en');\r\n\r\n  const toggleVoice = useCallback(() => {\r\n    setIsListeningState(prev => !prev);\r\n    // Dispatch event for components not using context (if any)\r\n    window.dispatchEvent(new CustomEvent('toggle-voice-control-internal'));\r\n  }, []);\r\n\r\n  return (\r\n    <VoiceContext.Provider value={{\r\n      isListening,\r\n      setIsListening: setIsListeningState,\r\n      toggleVoice,\r\n      voiceLanguage,\r\n      setVoiceLanguage,\r\n    }}>\r\n      {children}\r\n    </VoiceContext.Provider>\r\n  );\r\n}\r\n\r\nexport function useVoice() {\r\n  const context = useContext(VoiceContext);\r\n  if (context === undefined) {\r\n    throw new Error('useVoice must be used within a VoiceProvider');\r\n  }\r\n  return context;\r\n}\r\n"
+        }
+    ]
+}
