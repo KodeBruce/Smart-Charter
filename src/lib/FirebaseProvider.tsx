@@ -1,10 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { normalizeUserRole, type UserRole } from './authorization';
+
+interface AppUserProfile {
+  id: string;
+  email: string | null;
+  name: string;
+  role: UserRole;
+}
 
 interface FirebaseContextType {
   user: User | null;
+  userProfile: AppUserProfile | null;
+  role: UserRole;
   loading: boolean;
   authLoading: boolean;
   signInWithGoogle: () => Promise<void>;
@@ -15,10 +25,18 @@ const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined
 
 export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<AppUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let unsubscribeUserProfile: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (unsubscribeUserProfile) {
+        unsubscribeUserProfile();
+        unsubscribeUserProfile = null;
+      }
+
       if (user) {
         // Ensure user document exists in Firestore
         const userRef = doc(db, 'users', user.uid);
@@ -33,15 +51,43 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
               createdAt: serverTimestamp(),
             });
           }
+
+          unsubscribeUserProfile = onSnapshot(userRef, (snapshot) => {
+            const data = snapshot.data();
+            setUserProfile({
+              id: user.uid,
+              email: data?.email || user.email,
+              name: data?.name || user.displayName || 'Anonymous User',
+              role: normalizeUserRole(data?.role),
+            });
+          }, () => {
+            setUserProfile({
+              id: user.uid,
+              email: user.email,
+              name: user.displayName || 'Anonymous User',
+              role: 'user',
+            });
+          });
         } catch (error) {
           handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
+          setUserProfile({
+            id: user.uid,
+            email: user.email,
+            name: user.displayName || 'Anonymous User',
+            role: 'user',
+          });
         }
+      } else {
+        setUserProfile(null);
       }
       setUser(user);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (unsubscribeUserProfile) unsubscribeUserProfile();
+    };
   }, []);
 
   const [authLoading, setAuthLoading] = useState(false);
@@ -77,7 +123,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <FirebaseContext.Provider value={{ user, loading, authLoading, signInWithGoogle, logout }}>
+    <FirebaseContext.Provider value={{ user, userProfile, role: userProfile?.role || 'user', loading, authLoading, signInWithGoogle, logout }}>
       {!loading && children}
     </FirebaseContext.Provider>
   );

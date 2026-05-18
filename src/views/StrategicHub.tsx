@@ -398,7 +398,7 @@ export default function StrategicHub() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="px-4 py-6 sm:px-6 sm:py-6 border-b border-outline/10 flex justify-between items-end bg-surface/50 backdrop-blur-md sticky top-0 z-10">
+        <header id="walkthrough-strategic-view" className="px-4 py-6 sm:px-6 sm:py-6 border-b border-outline/10 flex justify-between items-end bg-surface/50 backdrop-blur-md sticky top-0 z-10">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-primary/5 rounded-xl">

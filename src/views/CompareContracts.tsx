@@ -10,6 +10,7 @@ import {
 import IngestModal from '../components/IngestModal';
 import { ContractAnalysis } from '../services/geminiService';
 import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
+import { normalizeComparisonContract } from '../lib/contracts';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import TopBar from '../components/TopBar';
 
@@ -43,11 +44,9 @@ export default function CompareContracts() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const contractsData = snapshot.docs.map(doc => ({
+      const contractsData = snapshot.docs.map(doc => normalizeComparisonContract({
         id: doc.id,
         ...doc.data(),
-        expiry: doc.data().expiryDate,
-        risk: doc.data().riskLevel
       }));
       setAllContracts(contractsData);
       setIsLoading(false);

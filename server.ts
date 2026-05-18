@@ -11,6 +11,8 @@ import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import officeparser from 'officeparser';
 import { chunkText } from './src/lib/ragChunker';
+import { getContractOwnerId } from './src/lib/contracts';
+import { computeImpactedContractCount } from './src/lib/sentinelImpact';
 
 // ---------------------------------------------------------------------------
 // Firebase Admin SDK — used server-side only for ID token verification.
@@ -750,21 +752,9 @@ Return a JSON array of objects with keys: jurisdiction, event, impact, agent`
             
             events = events.map((event: any, i: number) => {
               const embedding = eventEmbeddings[i];
-              let hasImpact = false;
-              let highestScore = 0;
-              
-              for (const [chunkId, chunk] of userStore.entries()) {
-                const score = cosineSimilarity(embedding, chunk.embedding);
-                if (score > highestScore) highestScore = score;
-                if (score > 0.72) {
-                  hasImpact = true;
-                  break;
-                }
-              }
-              
               return {
                 ...event,
-                impactedContracts: hasImpact ? Math.floor(Math.random() * 3) + 1 : 0 // Random 1-3 for demo, real logic would count unique docIds
+                impactedContracts: computeImpactedContractCount(embedding, userStore.values())
               };
             });
           }
@@ -1156,8 +1146,10 @@ Provide a precise, cited answer based ONLY on the excerpts above.`;
       if (!docSnap.exists) return res.status(404).json({ error: 'Document not found' });
       
       const contractData = docSnap.data();
-      // Ensure the user actually owns this contract
-      if (contractData?.userId !== userId) return res.status(403).json({ error: 'Forbidden' });
+      // Support both current and legacy ownership fields so saved contracts
+      // continue to work across older ingestion paths.
+      const contractOwnerId = getContractOwnerId(contractData);
+      if (contractOwnerId !== userId) return res.status(403).json({ error: 'Forbidden' });
 
       let rawText = '';
       if (contractData?.content) {

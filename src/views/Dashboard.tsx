@@ -14,6 +14,7 @@ import TopBar from '../components/TopBar';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { ContractAnalysis } from '../services/geminiService';
 import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
+import { buildPortfolioAuditSummary, countExpiringSoonContracts } from '../lib/dashboardAudit';
 import { collection, onSnapshot, query, where, orderBy, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 
 type FilterType = 'all' | 'High Risk' | 'Medium Risk' | 'Low Risk' | 'Review Required' | 'Unassigned';
@@ -38,7 +39,6 @@ export default function Dashboard() {
   const [isIngestOpen, setIsIngestOpen] = useState(false);
   const [contracts, setContracts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmModal, setConfirmModal] = useState<{
@@ -86,13 +86,12 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, [auth.currentUser]);
 
+  useEffect(() => {
+    setAuditResult(buildPortfolioAuditSummary(contracts));
+  }, [contracts]);
+
   const handleRunAudit = () => {
-    setIsAuditing(true);
-    setTimeout(() => {
-      const highRisk = contracts.filter(r => r.riskLevel === 'High Risk').length;
-      setAuditResult(`${highRisk} high-priority risk${highRisk !== 1 ? 's' : ''} across ${contracts.length} document${contracts.length !== 1 ? 's' : ''}.`);
-      setIsAuditing(false);
-    }, 2000);
+    setAuditResult(buildPortfolioAuditSummary(contracts));
   };
 
   const handleExportCSV = () => {
@@ -199,7 +198,7 @@ export default function Dashboard() {
       sub: 'Require action', icon: Shield, color: 'text-error', bg: 'bg-error/8'
     },
     { 
-      label: 'Expiring Soon', value: contracts.filter(r => r.expiry).length.toString(),
+      label: 'Expiring Soon', value: countExpiringSoonContracts(contracts).toString(),
       sub: 'Within 30 days', icon: Clock, color: 'text-warning', bg: 'bg-warning/8'
     },
     { 
@@ -564,14 +563,13 @@ export default function Dashboard() {
               <h4 className="text-[9px] font-bold text-on-surface/50 uppercase tracking-[0.25em]">Portfolio Analysis</h4>
             </div>
             <p className="text-xl font-light text-on-surface/90 leading-relaxed mb-8">
-              {auditResult || "14% of NDAs approaching renewal. Run an audit to refresh your risk profile."}
+              {auditResult}
             </p>
             <button 
               onClick={handleRunAudit}
-              disabled={isAuditing}
-              className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.15em] text-primary hover:text-primary-light transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.15em] text-primary hover:text-primary-light transition-colors"
             >
-              {isAuditing ? 'Running audit…' : 'Run Portfolio Audit'}
+              Run Portfolio Audit
               <ArrowRight className="h-3 w-3" />
             </button>
           </div>
