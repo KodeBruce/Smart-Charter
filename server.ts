@@ -102,7 +102,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
  */
 async function rebuildRagStoreForUser(userId: string): Promise<void> {
   try {
-    const db = getFirestore(adminApp);
+    const db = getDb();
     const chunksSnap = await db
       .collection('rag_chunks')
       .where('metadata.userId', '==', userId)
@@ -895,7 +895,7 @@ Return a JSON array of objects with keys: jurisdiction, event, impact, agent`
       }
 
       // 7. Persist to Firestore (delete old, write new)
-      const db = getFirestore(adminApp);
+      const db = getDb();
       const oldChunks = await db
         .collection('rag_chunks')
         .where('metadata.docId', '==', docId)
@@ -1098,7 +1098,7 @@ Provide a precise, cited answer based ONLY on the excerpts above.`;
       const decodedToken = await getAdminAuth(adminApp).verifyIdToken(idToken);
       const userId = decodedToken.uid;
 
-      const db = getFirestore(adminApp);
+      const db = getDb();
       const chunksSnap = await db
         .collection('rag_chunks')
         .where('metadata.docId', '==', docId)
@@ -1140,7 +1140,7 @@ Provide a precise, cited answer based ONLY on the excerpts above.`;
       const userId = decodedToken.uid;
 
       // Fetch the raw document text from Firestore
-      const db = getFirestore(adminApp);
+      const db = getDb();
       const docSnap = await db.collection('contracts').doc(docId).get();
       if (!docSnap.exists) return res.status(404).json({ error: 'Document not found' });
       
