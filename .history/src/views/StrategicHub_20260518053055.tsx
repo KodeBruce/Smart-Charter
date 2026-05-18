@@ -178,8 +178,6 @@ export default function StrategicHub() {
     taskId: string;
   } | null>(null);
 
-  const [isSentinelOpen, setIsSentinelOpen] = useState(false);
-
   const playSuccessSound = () => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -424,15 +422,6 @@ export default function StrategicHub() {
               </button>
             ))}
           </div>
-
-          {/* Mobile Sentinel Toggle Button */}
-          <button
-            onClick={() => setIsSentinelOpen(true)}
-            className="lg:hidden flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-all ml-auto"
-          >
-            <Globe className="h-4 w-4 text-primary" />
-            <span className="text-[8px] font-black text-primary uppercase\">Sentinel</span>
-          </button>
         </header>
 
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 space-y-6 md:space-y-10 lg:space-y-16">
@@ -664,7 +653,7 @@ export default function StrategicHub() {
       </div>
 
       {/* Jurisdictional Sentinel Panel */}
-      <aside className="hidden lg:flex w-[320px] bg-surface-container-low border-l border-outline/10 flex-col animate-in slide-in-from-right duration-1000">
+      <aside className="w-[320px] bg-surface-container-low border-l border-outline/10 flex flex-col animate-in slide-in-from-right duration-1000">
         <div className="p-8 border-b border-outline/10">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface">Jurisdictional Sentinel</h3>
@@ -798,80 +787,6 @@ export default function StrategicHub() {
           </div>
         </div>
       </aside>
-
-      {/* Mobile Sentinel Drawer */}
-      <AnimatePresence>
-        {isSentinelOpen && (
-          <>
-            {/* Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSentinelOpen(false)}
-              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-            />
-            {/* Drawer */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-              className="fixed right-0 top-0 h-full w-[85vw] max-w-[320px] bg-surface-container-low border-l border-outline/10 flex flex-col z-40 lg:hidden shadow-lg"
-            >
-              <div className="flex items-center justify-between p-4 border-b border-outline/10">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface">Sentinel</h3>
-                <button
-                  onClick={() => setIsSentinelOpen(false)}
-                  className="p-1.5 hover:bg-on-surface/10 rounded-lg transition-all"
-                >
-                  <X className="h-4 w-4 text-on-surface/60" />
-                </button>
-              </div>
-              <div className="p-4 border-b border-outline/10">
-                <div className="flex items-center justify-between mb-4">
-                  <button 
-                    onClick={discoverNewEvent}
-                    disabled={isDiscovering}
-                    className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 rounded-full hover:bg-primary/20 transition-all"
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full ${feedSource === 'live' ? 'bg-success' : 'bg-primary'} ${isDiscovering ? 'animate-ping' : 'animate-pulse'}`} />
-                    <span className="text-[8px] font-black text-primary uppercase">
-                      {isDiscovering ? 'Scanning...' : feedSource === 'live' ? 'Live ⚡' : 'Live'}
-                    </span>
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-3.5 w-3.5 text-on-surface/30" />
-                    <span className="text-[9px] font-bold text-on-surface/60">Scanning 42 Jurisdictions</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Scale className="h-3.5 w-3.5 text-on-surface/30" />
-                    <span className="text-[9px] font-bold text-on-surface/60">Verifying Against 1.2M Records</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
-                <p className="text-[8px] font-bold uppercase tracking-widest text-on-surface/30 mb-4">Active Feed</p>
-                <div className="space-y-4">
-                  {liveAgentFeed.slice(0, 4).map((event) => (
-                    <div key={event.id} className="relative pl-4 before:absolute before:left-1 before:top-1 before:bottom-0 before:w-px before:bg-outline/20">
-                      <div className={`absolute left-[-1px] top-1 w-1 h-1 rounded-full ${event.impact === 'High' ? 'bg-error' : event.impact === 'Medium' ? 'bg-warning' : 'bg-success'}`} />
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-[8px] font-black text-on-surface/40 uppercase tracking-tighter">{event.jurisdiction}</span>
-                        <span className="text-[7px] text-on-surface/30">{event.time}</span>
-                      </div>
-                      <p className="text-[9px] font-bold text-on-surface/80 leading-tight mb-1">{event.event}</p>
-                      <span className={`text-[7px] font-bold uppercase ${event.impact === 'High' ? 'text-error' : 'text-on-surface/40'}`}>Impact: {event.impact}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {/* Neural Insight Modal */}
       <AnimatePresence>

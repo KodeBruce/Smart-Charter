@@ -178,8 +178,6 @@ export default function StrategicHub() {
     taskId: string;
   } | null>(null);
 
-  const [isSentinelOpen, setIsSentinelOpen] = useState(false);
-
   const playSuccessSound = () => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -400,7 +398,7 @@ export default function StrategicHub() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header id="walkthrough-strategic-view" className="px-3 md:px-4 lg:px-6 py-4 md:py-5 lg:py-6 border-b border-outline/10 flex flex-col md:flex-row md:justify-between md:items-end gap-3 md:gap-4 bg-surface/50 backdrop-blur-md sticky top-0 z-10">
+        <header id="walkthrough-strategic-view" className="px-4 py-6 sm:px-6 sm:py-6 border-b border-outline/10 flex justify-between items-end bg-surface/50 backdrop-blur-md sticky top-0 z-10">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-primary/5 rounded-xl">
@@ -411,7 +409,7 @@ export default function StrategicHub() {
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-on-surface/40">Multi-Agent Corroborated Analysis</p>
           </div>
 
-          <div className="flex bg-surface-container/50 rounded-xl p-1 gap-1 flex-wrap justify-center md:justify-start">
+          <div className="flex bg-surface-container/50 rounded-xl p-1">
             {['all', 'negotiation', 'obligations', 'compliance'].map((v) => (
               <button
                 key={v}
@@ -424,15 +422,6 @@ export default function StrategicHub() {
               </button>
             ))}
           </div>
-
-          {/* Mobile Sentinel Toggle Button */}
-          <button
-            onClick={() => setIsSentinelOpen(true)}
-            className="lg:hidden flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-all ml-auto"
-          >
-            <Globe className="h-4 w-4 text-primary" />
-            <span className="text-[8px] font-black text-primary uppercase\">Sentinel</span>
-          </button>
         </header>
 
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 space-y-6 md:space-y-10 lg:space-y-16">
@@ -440,14 +429,14 @@ export default function StrategicHub() {
           {/* Section 1: AI Redlining Simulator */}
           {(activeView === 'all' || activeView === 'negotiation') && (
             <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="flex items-center justify-between mb-6 md:mb-8 flex-col sm:flex-row gap-3 sm:gap-0">
+              <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                   <GitPullRequest className="h-3 w-3 text-primary/40" />
-                  <h2 className="text-xs sm:text-[10px] font-bold uppercase tracking-[0.25em] text-on-surface/50">Negotiation Simulator</h2>
+                  <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] text-on-surface/50">Negotiation Simulator</h2>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  <span className="text-[8px] sm:text-[9px] font-bold text-success uppercase tracking-widest">Live From Portfolio</span>
+                  <span className="text-[9px] font-bold text-success uppercase tracking-widest">Live From Portfolio</span>
                 </div>
               </div>
               
@@ -465,7 +454,7 @@ export default function StrategicHub() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 md:gap-8 lg:gap-12">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                 {redlineSuggestions.map((item) => (
                   <div key={item.id} className="relative pt-6 group">
                     <div className="absolute top-0 left-0 w-8 h-[1px] bg-primary/40 group-hover:w-full transition-all duration-700" />
@@ -477,7 +466,7 @@ export default function StrategicHub() {
                         {item.risk} Risk
                       </span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
+                    <div className="grid grid-cols-2 gap-6 mb-6">
                       <div className="space-y-2">
                         <p className="text-[9px] font-bold uppercase tracking-widest text-on-surface/30">Original</p>
                         <p className="text-[11px] text-on-surface/60 italic leading-relaxed line-clamp-3">"{item.original}"</p>
@@ -505,7 +494,7 @@ export default function StrategicHub() {
                       </div>
                       <button 
                         onClick={() => fetchNeuralInsight(item.clause, `Suggestion: ${item.suggested}. Simulation: ${item.simulation}`)}
-                        className="w-full py-2.5 md:py-2 bg-surface-container border border-outline/20 rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 active:scale-95 transition-all flex items-center justify-center gap-2 min-h-[44px]"
+                        className="w-full py-2 bg-surface-container border border-outline/20 rounded-lg text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
                       >
                         <Sparkles className="h-3 w-3" />
                         Request Neural Corroboration
@@ -521,10 +510,10 @@ export default function StrategicHub() {
           {/* Section 2: Obligation Tracker */}
           {(activeView === 'all' || activeView === 'obligations') && (
             <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
-              <div className="flex items-center justify-between mb-6 md:mb-8">
+              <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                   <Calendar className="h-3 w-3 text-on-surface/30" />
-                  <h2 className="text-xs sm:text-[10px] font-bold uppercase tracking-[0.25em] text-on-surface/50">Obligation Extraction Tracker</h2>
+                  <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] text-on-surface/50">Obligation Extraction Tracker</h2>
                 </div>
               </div>
               
@@ -542,7 +531,7 @@ export default function StrategicHub() {
                   </div>
                 </div>
               ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {obligations.map((item) => (
                   <div key={item.id} className="relative pt-6 group">
                     <div className="absolute top-0 left-0 w-8 h-[1px] bg-outline/40 group-hover:w-full transition-all duration-700" />
@@ -576,9 +565,9 @@ export default function StrategicHub() {
           {/* Section 3: Compliance Radar */}
           {(activeView === 'all' || activeView === 'compliance') && (
             <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-              <div className="flex items-center gap-3 mb-6 md:mb-8">
+              <div className="flex items-center gap-3 mb-8">
                 <Shield className="h-3 w-3 text-on-surface/30" />
-                <h2 className="text-xs sm:text-[10px] font-bold uppercase tracking-[0.25em] text-on-surface/50">Compliance & Regulatory Radar</h2>
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] text-on-surface/50">Compliance & Regulatory Radar</h2>
               </div>
               
               {isLoadingData ? (
@@ -600,7 +589,7 @@ export default function StrategicHub() {
                   <div 
                     key={item.id} 
                     onClick={() => fetchNeuralInsight(item.standard, item.detail)}
-                    className="relative py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between group border-b border-outline/5 hover:bg-on-surface/[0.03] active:scale-[0.99] cursor-pointer transition-all px-2 md:px-4 -mx-2 md:-mx-4 rounded-xl gap-3 md:gap-0"
+                    className="relative py-6 flex items-center justify-between group border-b border-outline/5 hover:bg-on-surface/[0.03] active:scale-[0.99] cursor-pointer transition-all px-4 -mx-4 rounded-xl"
                   >
                     <div className="flex items-center gap-6 min-w-0 flex-1 mr-4">
                       <div className="relative w-12 h-12 shrink-0">
@@ -664,7 +653,7 @@ export default function StrategicHub() {
       </div>
 
       {/* Jurisdictional Sentinel Panel */}
-      <aside className="hidden lg:flex w-[320px] bg-surface-container-low border-l border-outline/10 flex-col animate-in slide-in-from-right duration-1000">
+      <aside className="w-[320px] bg-surface-container-low border-l border-outline/10 flex flex-col animate-in slide-in-from-right duration-1000">
         <div className="p-8 border-b border-outline/10">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface">Jurisdictional Sentinel</h3>
@@ -798,80 +787,6 @@ export default function StrategicHub() {
           </div>
         </div>
       </aside>
-
-      {/* Mobile Sentinel Drawer */}
-      <AnimatePresence>
-        {isSentinelOpen && (
-          <>
-            {/* Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSentinelOpen(false)}
-              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-            />
-            {/* Drawer */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-              className="fixed right-0 top-0 h-full w-[85vw] max-w-[320px] bg-surface-container-low border-l border-outline/10 flex flex-col z-40 lg:hidden shadow-lg"
-            >
-              <div className="flex items-center justify-between p-4 border-b border-outline/10">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface">Sentinel</h3>
-                <button
-                  onClick={() => setIsSentinelOpen(false)}
-                  className="p-1.5 hover:bg-on-surface/10 rounded-lg transition-all"
-                >
-                  <X className="h-4 w-4 text-on-surface/60" />
-                </button>
-              </div>
-              <div className="p-4 border-b border-outline/10">
-                <div className="flex items-center justify-between mb-4">
-                  <button 
-                    onClick={discoverNewEvent}
-                    disabled={isDiscovering}
-                    className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 rounded-full hover:bg-primary/20 transition-all"
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full ${feedSource === 'live' ? 'bg-success' : 'bg-primary'} ${isDiscovering ? 'animate-ping' : 'animate-pulse'}`} />
-                    <span className="text-[8px] font-black text-primary uppercase">
-                      {isDiscovering ? 'Scanning...' : feedSource === 'live' ? 'Live ⚡' : 'Live'}
-                    </span>
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-3.5 w-3.5 text-on-surface/30" />
-                    <span className="text-[9px] font-bold text-on-surface/60">Scanning 42 Jurisdictions</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Scale className="h-3.5 w-3.5 text-on-surface/30" />
-                    <span className="text-[9px] font-bold text-on-surface/60">Verifying Against 1.2M Records</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
-                <p className="text-[8px] font-bold uppercase tracking-widest text-on-surface/30 mb-4">Active Feed</p>
-                <div className="space-y-4">
-                  {liveAgentFeed.slice(0, 4).map((event) => (
-                    <div key={event.id} className="relative pl-4 before:absolute before:left-1 before:top-1 before:bottom-0 before:w-px before:bg-outline/20">
-                      <div className={`absolute left-[-1px] top-1 w-1 h-1 rounded-full ${event.impact === 'High' ? 'bg-error' : event.impact === 'Medium' ? 'bg-warning' : 'bg-success'}`} />
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-[8px] font-black text-on-surface/40 uppercase tracking-tighter">{event.jurisdiction}</span>
-                        <span className="text-[7px] text-on-surface/30">{event.time}</span>
-                      </div>
-                      <p className="text-[9px] font-bold text-on-surface/80 leading-tight mb-1">{event.event}</p>
-                      <span className={`text-[7px] font-bold uppercase ${event.impact === 'High' ? 'text-error' : 'text-on-surface/40'}`}>Impact: {event.impact}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {/* Neural Insight Modal */}
       <AnimatePresence>
