@@ -72,8 +72,6 @@ interface NeuralTask {
   insight: any | null;
 }
 
-type InsightTabKey = 'summary' | 'jurisdictions' | 'precedents' | 'remediations';
-
 export default function StrategicHub() {
   const [activeView, setActiveView] = useState<'all' | 'negotiation' | 'obligations' | 'compliance'>('all');
 
@@ -180,15 +178,8 @@ export default function StrategicHub() {
     insight: any | null;
     taskId: string;
   } | null>(null);
-  const [insightTab, setInsightTab] = useState<InsightTabKey>('summary');
 
   const [isSentinelOpen, setIsSentinelOpen] = useState(false);
-
-  useEffect(() => {
-    if (intelligenceModal?.isOpen) {
-      setInsightTab('summary');
-    }
-  }, [intelligenceModal?.isOpen, intelligenceModal?.taskId]);
 
   const playSuccessSound = () => {
     try {
@@ -212,12 +203,7 @@ export default function StrategicHub() {
     }
   };
 
-  const fetchNeuralInsight = async (
-    title: string,
-    context: string,
-    existingTaskId?: string,
-    initialTab: InsightTabKey = 'summary'
-  ) => {
+  const fetchNeuralInsight = async (title: string, context: string, existingTaskId?: string) => {
     let taskId = existingTaskId;
     
     // Find if task already exists
@@ -233,7 +219,6 @@ export default function StrategicHub() {
         insight: null
       };
       setNeuralTasks(prev => [newTask, ...prev]);
-      setInsightTab(initialTab);
       
       // Open the modal immediately in loading status
       setIntelligenceModal({ isOpen: true, title, context, insight: null, taskId });
@@ -241,7 +226,6 @@ export default function StrategicHub() {
       // Run generation task in background
       runBackgroundCorroboration(newTask);
     } else {
-      setInsightTab(initialTab);
       // Open the modal with task's current status (could be completed or running)
       setIntelligenceModal({ 
         isOpen: true, 
@@ -616,7 +600,8 @@ export default function StrategicHub() {
                 {complianceRadar.map((item) => (
                   <div 
                     key={item.id} 
-                    className="relative py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between group border-b border-outline/5 hover:bg-on-surface/[0.03] transition-all px-2 md:px-4 -mx-2 md:-mx-4 rounded-xl gap-3 md:gap-0"
+                    onClick={() => fetchNeuralInsight(item.standard, item.detail)}
+                    className="relative py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between group border-b border-outline/5 hover:bg-on-surface/[0.03] active:scale-[0.99] cursor-pointer transition-all px-2 md:px-4 -mx-2 md:-mx-4 rounded-xl gap-3 md:gap-0"
                   >
                     <div className="flex items-center gap-6 min-w-0 flex-1 mr-4">
                       <div className="relative w-12 h-12 shrink-0">
@@ -640,21 +625,17 @@ export default function StrategicHub() {
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => fetchNeuralInsight(item.standard, item.detail, undefined, 'jurisdictions')}
-                      className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-primary/5 active:scale-[0.98] transition-all"
-                      aria-label={`View corroboration for ${item.standard}`}
-                    >
-                      <div className="p-1.5 bg-surface-container rounded-lg border border-outline/20 text-primary/40 group-hover:text-primary group-hover:bg-primary/5 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 bg-surface-container rounded-lg border border-outline/20 text-primary/40 group-hover:text-primary group-hover:bg-primary/5 transition-all">
                         <Sparkles className="h-3.5 w-3.5" />
                       </div>
-                      <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
+                      <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
                         item.status === 'Aligned' ? 'bg-success/10 text-success' : item.status === 'Warning' ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary'
                       }`}>
                         {item.status}
                       </span>
-                      <ArrowRight className="h-3.5 w-3.5 text-on-surface/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                    </button>
+                      <ArrowRight className="h-4 w-4 text-on-surface/20 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -872,63 +853,6 @@ export default function StrategicHub() {
                   </div>
                 </div>
               </div>
-
-              {/* Mobile Task Tracker */}
-              {neuralTasks.length > 0 && (
-                <div className="px-4 py-3 border-b border-outline/10 bg-primary/[0.01]">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-on-surface/50">Agent Task Tracker</span>
-                    <span className="text-[7px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">
-                      {neuralTasks.filter(t => t.status === 'running').length} ACTIVE
-                    </span>
-                  </div>
-                  <div className="space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar">
-                    {neuralTasks.slice(0, 6).map((task) => (
-                      <button
-                        key={task.id}
-                        onClick={() => fetchNeuralInsight(task.title, task.context, task.id)}
-                        className="w-full p-2.5 bg-surface border border-outline/10 hover:border-primary/25 hover:bg-primary/[0.01] rounded-xl transition-all flex items-center justify-between gap-2 text-left active:scale-[0.98]"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-on-surface truncate">{task.title}</p>
-                          <p className="text-[7px] font-bold text-on-surface/40 uppercase tracking-wider mt-0.5 flex items-center gap-1">
-                            {task.status === 'running' ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                                <span>Running in background</span>
-                              </>
-                            ) : task.status === 'completed' ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                                <span className="text-success">Insight ready • view report</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-error" />
-                                <span className="text-error">Sync failed • retry</span>
-                              </>
-                            )}
-                          </p>
-                        </div>
-                        <div className="shrink-0">
-                          {task.status === 'running' ? (
-                            <div className="w-3.5 h-3.5 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                          ) : task.status === 'completed' ? (
-                            <div className="w-4 h-4 rounded-full bg-success/10 border border-success/20 flex items-center justify-center text-[8px] text-success font-black">
-                              ✓
-                            </div>
-                          ) : (
-                            <div className="w-4 h-4 rounded-full bg-error/10 border border-error/20 flex items-center justify-center text-[8px] text-error font-black">
-                              !
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
                 <p className="text-[8px] font-bold uppercase tracking-widest text-on-surface/30 mb-4">Active Feed</p>
                 <div className="space-y-4">
@@ -954,234 +878,155 @@ export default function StrategicHub() {
       {typeof window !== 'undefined' && createPortal(
         <AnimatePresence>
           {intelligenceModal?.isOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-3 bg-black/65 backdrop-blur-md">
+            <div className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center p-0 sm:p-4 bg-black/65 backdrop-blur-md">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.98, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.98, y: 12 }}
-                className={`w-[92vw] sm:w-full ${!intelligenceModal.insight ? 'max-w-[480px]' : 'max-w-[92vw] xl:max-w-3xl'} max-h-[78dvh] sm:max-h-[84vh] bg-surface border border-outline/20 rounded-2xl sm:rounded-[28px] overflow-hidden shadow-2xl relative flex flex-col min-h-0 transition-all duration-300 ease-out`}
+                className={`w-full ${!intelligenceModal.insight ? 'sm:max-w-md' : 'sm:max-w-[95vw] xl:max-w-4xl'} h-full sm:h-auto max-h-[100dvh] sm:max-h-[90vh] bg-surface border-0 sm:border border-outline/20 rounded-none sm:rounded-[32px] overflow-hidden shadow-2xl relative flex flex-col min-h-0 transition-all duration-300 ease-out`}
               >
               {/* Header */}
-              <div className={`border-b border-outline/10 flex items-center justify-between bg-surface-container-low shrink-0 ${!intelligenceModal.insight ? 'p-3 sm:p-4' : 'p-3 sm:p-5'}`}>
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-1.5 bg-primary/5 rounded-lg border border-primary/10">
-                    <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+              <div className={`border-b border-outline/10 flex items-center justify-between bg-surface-container-low shrink-0 ${!intelligenceModal.insight ? 'p-4 sm:p-6' : 'p-4 sm:p-8'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/5 rounded-xl border border-primary/10">
+                    <Sparkles className="h-4 w-4 text-primary animate-pulse" />
                   </div>
-                  <div className="min-w-0">
-                    <h2 className={`font-black tracking-tight text-on-surface leading-tight truncate ${!intelligenceModal.insight ? 'text-xs sm:text-sm' : 'text-xs sm:text-base lg:text-lg'}`}>{intelligenceModal.title}</h2>
-                    <p className="text-[7px] font-black text-primary uppercase tracking-[0.16em] mt-0.5">Sentinel Corroboration</p>
+                  <div>
+                    <h2 className={`font-black tracking-tight text-on-surface leading-tight ${!intelligenceModal.insight ? 'text-sm sm:text-base' : 'text-sm sm:text-lg lg:text-xl'}`}>{intelligenceModal.title}</h2>
+                    <p className="text-[8px] font-black text-primary uppercase tracking-[0.2em] mt-0.5">Sentinel Corroboration</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setIntelligenceModal(null)} 
                     title="Minimize to Sidebar Tracker"
-                    className="p-1 hover:bg-surface-container text-on-surface/45 hover:text-primary rounded-lg transition-all flex items-center justify-center gap-1 active:scale-95 border border-transparent hover:border-primary/10 hover:bg-primary/5"
+                    className="p-1.5 hover:bg-surface-container text-on-surface/45 hover:text-primary rounded-xl transition-all flex items-center justify-center gap-1 active:scale-95 border border-transparent hover:border-primary/10 hover:bg-primary/5"
                   >
-                    <Minimize2 className="h-3 w-3" />
+                    <Minimize2 className="h-3.5 w-3.5" />
                     <span className="text-[8px] font-black uppercase tracking-wider hidden sm:inline">Minimize</span>
                   </button>
                   <button 
                     onClick={() => setIntelligenceModal(null)} 
-                    className="p-1 hover:bg-surface-container text-on-surface/40 hover:text-on-surface rounded-full transition-colors active:scale-95"
+                    className="p-1.5 hover:bg-surface-container text-on-surface/40 hover:text-on-surface rounded-full transition-colors active:scale-95"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
 
               {/* Body */}
-              <div className={`overflow-y-auto custom-scrollbar flex-1 min-h-0 bg-surface-container-lowest/20 ${!intelligenceModal.insight ? 'p-3 sm:p-4' : 'p-3 sm:p-5 space-y-4 sm:space-y-5'}`}>
+              <div className={`overflow-y-auto custom-scrollbar flex-1 min-h-0 bg-surface-container-lowest/20 ${!intelligenceModal.insight ? 'p-4 sm:p-6' : 'p-4 sm:p-8 space-y-5 sm:space-y-8'}`}>
                 {!intelligenceModal.insight ? (
                   <div className="flex flex-col items-center justify-center py-8 sm:py-12 gap-4">
                     <div className="h-6 w-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
                     <p className="text-[10px] font-black text-primary/50 uppercase tracking-[0.2em] animate-pulse">Synchronizing with Global Nodes...</p>
                   </div>
                 ) : (
-                  (() => {
-                    const tabs: Array<{ key: InsightTabKey; label: string }> = [
-                      { key: 'summary', label: 'Summary' },
-                      { key: 'jurisdictions', label: 'Jurisdictions' },
-                      ...(intelligenceModal.insight.precedents && intelligenceModal.insight.precedents.length > 0
-                        ? [{ key: 'precedents' as InsightTabKey, label: 'Precedents' }]
-                        : []),
-                      ...(intelligenceModal.insight.remediations && intelligenceModal.insight.remediations.length > 0
-                        ? [{ key: 'remediations' as InsightTabKey, label: 'Remediations' }]
-                        : [])
-                    ];
-
-                    const activeKey = tabs.some((tab) => tab.key === insightTab) ? insightTab : tabs[0].key;
-                    const activeIndex = tabs.findIndex((tab) => tab.key === activeKey);
-
-                    const goToIndex = (nextIndex: number) => {
-                      if (nextIndex < 0 || nextIndex >= tabs.length) return;
-                      setInsightTab(tabs[nextIndex].key);
-                    };
-
-                    const handleSwipe = (_event: any, info: any) => {
-                      if (info.offset.x < -70) {
-                        goToIndex(activeIndex + 1);
-                      }
-                      if (info.offset.x > 70) {
-                        goToIndex(activeIndex - 1);
-                      }
-                    };
-
-                    return (
-                      <div className="space-y-3 sm:space-y-4 min-h-0">
-                        <div className="overflow-x-auto custom-scrollbar pb-1">
-                          <div className="flex items-center gap-2 min-w-max">
-                            {tabs.map((tab) => (
-                              <button
-                                key={tab.key}
-                                onClick={() => setInsightTab(tab.key)}
-                                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-[0.12em] transition-all border ${
-                                  activeKey === tab.key
-                                    ? 'bg-primary text-on-primary border-primary shadow-lg shadow-primary/20'
-                                    : 'bg-surface-container text-on-surface/55 border-outline/15 hover:text-on-surface hover:border-outline/30'
-                                }`}
-                              >
-                                {tab.label}
-                              </button>
-                            ))}
-                          </div>
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-8 min-h-0"
+                  >
+                    {/* Executive Insights Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                      <div className="p-4 sm:p-6 rounded-2xl bg-primary/[0.03] border border-primary/10 hover:border-primary/20 transition-all">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Target className="h-4 w-4 text-primary" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Executive Summary</span>
                         </div>
+                        <p className="text-xs text-on-surface/80 leading-relaxed font-semibold break-words whitespace-pre-wrap">
+                          {intelligenceModal.insight.summary}
+                        </p>
+                      </div>
+                      <div className="p-4 sm:p-6 rounded-2xl bg-error/[0.02] border border-error/10 hover:border-error/20 transition-all">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertCircle className="h-4 w-4 text-error" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-error">Strategic Risk Exposure</span>
+                        </div>
+                        <p className="text-xs text-on-surface/80 leading-relaxed font-semibold break-words whitespace-pre-wrap">
+                          {intelligenceModal.insight.strategicImplication}
+                        </p>
+                      </div>
+                    </div>
 
-                        <AnimatePresence mode="wait" initial={false}>
-                          <motion.div
-                            key={activeKey}
-                            initial={{ opacity: 0, x: 18 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -18 }}
-                            transition={{ duration: 0.2 }}
-                            drag="x"
-                            dragConstraints={{ left: 0, right: 0 }}
-                            dragElastic={0.12}
-                            onDragEnd={handleSwipe}
-                            className="min-h-[180px] max-h-[44dvh] sm:max-h-[48dvh] overflow-y-auto custom-scrollbar"
-                          >
-                            {activeKey === 'summary' && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-primary/[0.03] border border-primary/10 hover:border-primary/20 transition-all">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <Target className="h-3.5 w-3.5 text-primary" />
-                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Executive Summary</span>
-                                  </div>
-                                  <p className="text-[11px] text-on-surface/80 leading-relaxed font-semibold break-words whitespace-pre-wrap">
-                                    {intelligenceModal.insight.summary}
-                                  </p>
-                                </div>
-                                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-error/[0.02] border border-error/10 hover:border-error/20 transition-all">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <AlertCircle className="h-3.5 w-3.5 text-error" />
-                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-error">Strategic Risk Exposure</span>
-                                  </div>
-                                  <p className="text-[11px] text-on-surface/80 leading-relaxed font-semibold break-words whitespace-pre-wrap">
-                                    {intelligenceModal.insight.strategicImplication}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
+                    {/* Jurisdictional Alignment Map */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-3.5 w-3.5 text-on-surface/40" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Jurisdictional Compliance Alignment</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {intelligenceModal.insight.jurisdictions.map((j: any, idx: number) => (
+                          <div key={idx} className="p-4 sm:p-5 rounded-2xl bg-surface-container border border-outline/10 hover:border-outline/20 hover:bg-surface-container/80 transition-all">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-xs font-bold text-on-surface">{j.name}</span>
+                              <span className={`text-[8px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                                j.status === 'Aligned' ? 'bg-success/10 text-success' :
+                                j.status === 'Warning' ? 'bg-warning/10 text-warning' :
+                                'bg-error/10 text-error'
+                              }`}>
+                                {j.status}
+                              </span>
+                            </div>
+                            <div className="mb-3">
+                              <span className="text-[8px] font-mono font-bold bg-primary/5 text-primary/80 border border-primary/10 px-2 py-0.5 rounded uppercase">
+                                {j.law}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-on-surface/60 leading-relaxed break-words whitespace-pre-wrap">{j.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-                            {activeKey === 'jurisdictions' && (
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                  <Globe className="h-3.5 w-3.5 text-on-surface/40" />
-                                  <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Jurisdictional Compliance Alignment</span>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  {intelligenceModal.insight.jurisdictions.map((j: any, idx: number) => (
-                                    <div key={idx} className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-surface-container border border-outline/10 hover:border-outline/20 hover:bg-surface-container/80 transition-all">
-                                      <div className="flex justify-between items-center mb-2">
-                                        <span className="text-xs font-bold text-on-surface">{j.name}</span>
-                                        <span className={`text-[8px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                                          j.status === 'Aligned' ? 'bg-success/10 text-success' :
-                                          j.status === 'Warning' ? 'bg-warning/10 text-warning' :
-                                          'bg-error/10 text-error'
-                                        }`}>
-                                          {j.status}
-                                        </span>
-                                      </div>
-                                      <div className="mb-2">
-                                        <span className="text-[8px] font-mono font-bold bg-primary/5 text-primary/80 border border-primary/10 px-2 py-0.5 rounded uppercase">
-                                          {j.law}
-                                        </span>
-                                      </div>
-                                      <p className="text-[10px] text-on-surface/60 leading-relaxed break-words whitespace-pre-wrap">{j.detail}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {activeKey === 'precedents' && intelligenceModal.insight.precedents && (
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                  <Scale className="h-3.5 w-3.5 text-on-surface/40" />
-                                  <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Landmark Legal Precedents</span>
-                                </div>
-                                <div className="grid grid-cols-1 gap-3">
-                                  {intelligenceModal.insight.precedents.map((p: any, idx: number) => (
-                                    <div key={idx} className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-surface-container-low border border-outline/5 hover:border-outline/15 transition-all">
-                                      <h4 className="text-[11px] font-bold text-on-surface/90 mb-1.5 break-words">{p.case}</h4>
-                                      <p className="text-[10px] text-on-surface/60 leading-relaxed break-words whitespace-pre-wrap">{p.impact}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {activeKey === 'remediations' && intelligenceModal.insight.remediations && (
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                  <ShieldCheck className="h-3.5 w-3.5 text-success" />
-                                  <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Strategic Alignment Checklist</span>
-                                </div>
-                                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-success/[0.01] border border-success/10 space-y-3">
-                                  {intelligenceModal.insight.remediations.map((r: string, idx: number) => (
-                                    <div key={idx} className="flex items-start gap-2.5 group">
-                                      <div className="mt-0.5 w-4 h-4 rounded-lg bg-success/15 border border-success/30 flex items-center justify-center text-[8px] font-black text-success group-hover:scale-105 active:scale-95 transition-all shrink-0">
-                                        ✓
-                                      </div>
-                                      <p className="text-[11px] text-on-surface/70 leading-relaxed font-semibold break-words whitespace-pre-wrap">{r}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </motion.div>
-                        </AnimatePresence>
-
-                        <div className="flex items-center justify-between gap-2 pt-0.5">
-                          <button
-                            onClick={() => goToIndex(activeIndex - 1)}
-                            disabled={activeIndex === 0}
-                            className="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider bg-surface-container border border-outline/15 text-on-surface/60 disabled:opacity-40 disabled:cursor-not-allowed hover:text-on-surface hover:border-outline/30 transition-all"
-                          >
-                            Prev
-                          </button>
-                          <span className="text-[7px] font-bold uppercase tracking-[0.16em] text-on-surface/35">Swipe or tap headings</span>
-                          <button
-                            onClick={() => goToIndex(activeIndex + 1)}
-                            disabled={activeIndex === tabs.length - 1}
-                            className="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider bg-surface-container border border-outline/15 text-on-surface/60 disabled:opacity-40 disabled:cursor-not-allowed hover:text-on-surface hover:border-outline/30 transition-all"
-                          >
-                            Next
-                          </button>
+                    {/* Precedents Section */}
+                    {intelligenceModal.insight.precedents && intelligenceModal.insight.precedents.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Scale className="h-3.5 w-3.5 text-on-surface/40" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Landmark Legal Precedents</span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4">
+                          {intelligenceModal.insight.precedents.map((p: any, idx: number) => (
+                            <div key={idx} className="p-4 sm:p-5 rounded-2xl bg-surface-container-low border border-outline/5 hover:border-outline/15 transition-all">
+                              <h4 className="text-xs font-bold text-on-surface/90 mb-2 break-words">{p.case}</h4>
+                              <p className="text-[11px] text-on-surface/60 leading-relaxed break-words whitespace-pre-wrap">{p.impact}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    );
-                  })()
+                    )}
+
+                    {/* Remediations Checklist */}
+                    {intelligenceModal.insight.remediations && intelligenceModal.insight.remediations.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Strategic Alignment checklist</span>
+                        </div>
+                        <div className="p-4 sm:p-6 rounded-2xl bg-success/[0.01] border border-success/10 space-y-4">
+                          {intelligenceModal.insight.remediations.map((r: string, idx: number) => (
+                            <div key={idx} className="flex items-start gap-3.5 group">
+                              <div className="mt-0.5 w-4 h-4 rounded-lg bg-success/15 border border-success/30 flex items-center justify-center text-[8px] font-black text-success group-hover:scale-105 active:scale-95 transition-all shrink-0">
+                                ✓
+                              </div>
+                              <p className="text-xs text-on-surface/70 leading-relaxed font-semibold break-words whitespace-pre-wrap">{r}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
                 )}
               </div>
 
               {/* Footer */}
               {intelligenceModal.insight && (
-                <div className="p-3 sm:p-5 bg-surface-container-low border-t border-outline/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 shrink-0">
-                  <span className="hidden sm:inline text-[8px] font-bold text-on-surface/30 uppercase tracking-[0.2em]">Verified by Smart Charter Sentinel Agent Cluster</span>
+                <div className="p-4 sm:p-8 bg-surface-container-low border-t border-outline/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 shrink-0">
+                  <span className="text-[8px] font-bold text-on-surface/30 uppercase tracking-[0.2em]">Verified by Smart Charter Sentinel Agent Cluster</span>
                   <button 
                     onClick={() => setIntelligenceModal(null)}
-                    className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2 bg-primary text-on-primary hover:bg-primary-hover active:scale-95 transition-all rounded-lg text-[9px] font-black uppercase tracking-[0.14em] shadow-lg shadow-primary/10"
+                    className="w-full sm:w-auto px-6 py-2.5 sm:py-2 bg-primary text-on-primary hover:bg-primary-hover active:scale-95 transition-all rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/10"
                   >
                     Dismiss Insight
                   </button>

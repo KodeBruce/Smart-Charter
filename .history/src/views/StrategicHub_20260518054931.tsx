@@ -872,63 +872,6 @@ export default function StrategicHub() {
                   </div>
                 </div>
               </div>
-
-              {/* Mobile Task Tracker */}
-              {neuralTasks.length > 0 && (
-                <div className="px-4 py-3 border-b border-outline/10 bg-primary/[0.01]">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-on-surface/50">Agent Task Tracker</span>
-                    <span className="text-[7px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">
-                      {neuralTasks.filter(t => t.status === 'running').length} ACTIVE
-                    </span>
-                  </div>
-                  <div className="space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar">
-                    {neuralTasks.slice(0, 6).map((task) => (
-                      <button
-                        key={task.id}
-                        onClick={() => fetchNeuralInsight(task.title, task.context, task.id)}
-                        className="w-full p-2.5 bg-surface border border-outline/10 hover:border-primary/25 hover:bg-primary/[0.01] rounded-xl transition-all flex items-center justify-between gap-2 text-left active:scale-[0.98]"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-on-surface truncate">{task.title}</p>
-                          <p className="text-[7px] font-bold text-on-surface/40 uppercase tracking-wider mt-0.5 flex items-center gap-1">
-                            {task.status === 'running' ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                                <span>Running in background</span>
-                              </>
-                            ) : task.status === 'completed' ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                                <span className="text-success">Insight ready • view report</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-error" />
-                                <span className="text-error">Sync failed • retry</span>
-                              </>
-                            )}
-                          </p>
-                        </div>
-                        <div className="shrink-0">
-                          {task.status === 'running' ? (
-                            <div className="w-3.5 h-3.5 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                          ) : task.status === 'completed' ? (
-                            <div className="w-4 h-4 rounded-full bg-success/10 border border-success/20 flex items-center justify-center text-[8px] text-success font-black">
-                              ✓
-                            </div>
-                          ) : (
-                            <div className="w-4 h-4 rounded-full bg-error/10 border border-error/20 flex items-center justify-center text-[8px] text-error font-black">
-                              !
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
                 <p className="text-[8px] font-bold uppercase tracking-widest text-on-surface/30 mb-4">Active Feed</p>
                 <div className="space-y-4">

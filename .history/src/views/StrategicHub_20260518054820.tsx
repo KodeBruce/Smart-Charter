@@ -212,12 +212,7 @@ export default function StrategicHub() {
     }
   };
 
-  const fetchNeuralInsight = async (
-    title: string,
-    context: string,
-    existingTaskId?: string,
-    initialTab: InsightTabKey = 'summary'
-  ) => {
+  const fetchNeuralInsight = async (title: string, context: string, existingTaskId?: string) => {
     let taskId = existingTaskId;
     
     // Find if task already exists
@@ -233,7 +228,6 @@ export default function StrategicHub() {
         insight: null
       };
       setNeuralTasks(prev => [newTask, ...prev]);
-      setInsightTab(initialTab);
       
       // Open the modal immediately in loading status
       setIntelligenceModal({ isOpen: true, title, context, insight: null, taskId });
@@ -241,7 +235,6 @@ export default function StrategicHub() {
       // Run generation task in background
       runBackgroundCorroboration(newTask);
     } else {
-      setInsightTab(initialTab);
       // Open the modal with task's current status (could be completed or running)
       setIntelligenceModal({ 
         isOpen: true, 
@@ -616,7 +609,8 @@ export default function StrategicHub() {
                 {complianceRadar.map((item) => (
                   <div 
                     key={item.id} 
-                    className="relative py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between group border-b border-outline/5 hover:bg-on-surface/[0.03] transition-all px-2 md:px-4 -mx-2 md:-mx-4 rounded-xl gap-3 md:gap-0"
+                    onClick={() => fetchNeuralInsight(item.standard, item.detail)}
+                    className="relative py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between group border-b border-outline/5 hover:bg-on-surface/[0.03] active:scale-[0.99] cursor-pointer transition-all px-2 md:px-4 -mx-2 md:-mx-4 rounded-xl gap-3 md:gap-0"
                   >
                     <div className="flex items-center gap-6 min-w-0 flex-1 mr-4">
                       <div className="relative w-12 h-12 shrink-0">
@@ -640,21 +634,17 @@ export default function StrategicHub() {
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => fetchNeuralInsight(item.standard, item.detail, undefined, 'jurisdictions')}
-                      className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-primary/5 active:scale-[0.98] transition-all"
-                      aria-label={`View corroboration for ${item.standard}`}
-                    >
-                      <div className="p-1.5 bg-surface-container rounded-lg border border-outline/20 text-primary/40 group-hover:text-primary group-hover:bg-primary/5 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 bg-surface-container rounded-lg border border-outline/20 text-primary/40 group-hover:text-primary group-hover:bg-primary/5 transition-all">
                         <Sparkles className="h-3.5 w-3.5" />
                       </div>
-                      <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
+                      <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
                         item.status === 'Aligned' ? 'bg-success/10 text-success' : item.status === 'Warning' ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary'
                       }`}>
                         {item.status}
                       </span>
-                      <ArrowRight className="h-3.5 w-3.5 text-on-surface/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                    </button>
+                      <ArrowRight className="h-4 w-4 text-on-surface/20 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -872,63 +862,6 @@ export default function StrategicHub() {
                   </div>
                 </div>
               </div>
-
-              {/* Mobile Task Tracker */}
-              {neuralTasks.length > 0 && (
-                <div className="px-4 py-3 border-b border-outline/10 bg-primary/[0.01]">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-on-surface/50">Agent Task Tracker</span>
-                    <span className="text-[7px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">
-                      {neuralTasks.filter(t => t.status === 'running').length} ACTIVE
-                    </span>
-                  </div>
-                  <div className="space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar">
-                    {neuralTasks.slice(0, 6).map((task) => (
-                      <button
-                        key={task.id}
-                        onClick={() => fetchNeuralInsight(task.title, task.context, task.id)}
-                        className="w-full p-2.5 bg-surface border border-outline/10 hover:border-primary/25 hover:bg-primary/[0.01] rounded-xl transition-all flex items-center justify-between gap-2 text-left active:scale-[0.98]"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-on-surface truncate">{task.title}</p>
-                          <p className="text-[7px] font-bold text-on-surface/40 uppercase tracking-wider mt-0.5 flex items-center gap-1">
-                            {task.status === 'running' ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                                <span>Running in background</span>
-                              </>
-                            ) : task.status === 'completed' ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                                <span className="text-success">Insight ready • view report</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-error" />
-                                <span className="text-error">Sync failed • retry</span>
-                              </>
-                            )}
-                          </p>
-                        </div>
-                        <div className="shrink-0">
-                          {task.status === 'running' ? (
-                            <div className="w-3.5 h-3.5 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                          ) : task.status === 'completed' ? (
-                            <div className="w-4 h-4 rounded-full bg-success/10 border border-success/20 flex items-center justify-center text-[8px] text-success font-black">
-                              ✓
-                            </div>
-                          ) : (
-                            <div className="w-4 h-4 rounded-full bg-error/10 border border-error/20 flex items-center justify-center text-[8px] text-error font-black">
-                              !
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
                 <p className="text-[8px] font-bold uppercase tracking-widest text-on-surface/30 mb-4">Active Feed</p>
                 <div className="space-y-4">
