@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Zap, Clock, ShieldCheck, Target, 
@@ -76,8 +76,6 @@ type InsightTabKey = 'summary' | 'jurisdictions' | 'precedents' | 'remediations'
 
 export default function StrategicHub() {
   const [activeView, setActiveView] = useState<'all' | 'negotiation' | 'obligations' | 'compliance'>('all');
-  const mainScrollRef = useRef<HTMLElement | null>(null);
-  const [sentinelTriggerTop, setSentinelTriggerTop] = useState(50);
 
   // ─── Real Firestore Data ───────────────────────────────────────────────────
   const [redlineSuggestions, setRedlineSuggestions] = useState<RedlineSuggestion[]>([]);
@@ -420,29 +418,6 @@ export default function StrategicHub() {
     discoverNewEvent();
   }, [isSentinelOpen, liveAgentFeed.length, isDiscovering]);
 
-  useEffect(() => {
-    const scroller = mainScrollRef.current;
-    if (!scroller) return;
-
-    const updateTriggerPosition = () => {
-      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-      if (maxScroll <= 0) {
-        setSentinelTriggerTop(50);
-        return;
-      }
-
-      const progress = Math.min(1, Math.max(0, scroller.scrollTop / maxScroll));
-      setSentinelTriggerTop(34 + (progress * 34));
-    };
-
-    updateTriggerPosition();
-    scroller.addEventListener('scroll', updateTriggerPosition, { passive: true });
-
-    return () => {
-      scroller.removeEventListener('scroll', updateTriggerPosition);
-    };
-  }, [activeView]);
-
 
   return (
     <div className="flex h-full bg-surface overflow-hidden">
@@ -473,9 +448,18 @@ export default function StrategicHub() {
               </button>
             ))}
           </div>
+
+          {/* Mobile Sentinel Toggle Button */}
+          <button
+            onClick={() => setIsSentinelOpen(true)}
+            className="lg:hidden flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-all ml-auto"
+          >
+            <Globe className="h-4 w-4 text-primary" />
+            <span className="text-[8px] font-black text-primary uppercase\">Sentinel</span>
+          </button>
         </header>
 
-        <main ref={mainScrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 space-y-6 md:space-y-10 lg:space-y-16">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 space-y-6 md:space-y-10 lg:space-y-16">
           
           {/* Section 1: AI Redlining Simulator */}
           {(activeView === 'all' || activeView === 'negotiation') && (
@@ -792,7 +776,53 @@ export default function StrategicHub() {
           </div>
         )}
 
-        <div className="flex-1" />
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-on-surface/30 mb-6">Active Intelligence Feed</p>
+          <div className="space-y-8">
+            {liveAgentFeed.length === 0 && !isDiscovering && (
+              <div className="p-4 rounded-xl border border-dashed border-outline/20 bg-surface-container-low/40 space-y-3">
+                <p className="text-[10px] font-bold text-on-surface/55">No feed items yet.</p>
+                <p className="text-[9px] text-on-surface/40">Tap refresh to fetch corroborated updates from the sentinel network.</p>
+                <button
+                  onClick={discoverNewEvent}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-[8px] font-black uppercase tracking-wider text-primary transition-all"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Retry Feed
+                </button>
+              </div>
+            )}
+            {liveAgentFeed.map((event) => (
+              <div key={event.id} className="relative pl-6 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-px before:bg-outline/20">
+                <div className={`absolute left-[-2px] top-0 w-1 h-1 rounded-full ${event.impact === 'High' ? 'bg-error' : event.impact === 'Medium' ? 'bg-warning' : 'bg-success'}`} />
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-[9px] font-black text-on-surface/40 uppercase tracking-tighter">{event.jurisdiction}</span>
+                  <div className="flex items-center gap-1">
+                    {event.source === 'live' && <span className="text-[7px] font-black text-success bg-success/10 px-1 rounded">LIVE</span>}
+                    <span className="text-[8px] font-medium text-on-surface/30">{event.time}</span>
+                  </div>
+                </div>
+                <p className="text-[11px] font-bold text-on-surface/80 leading-tight mb-2">{event.event}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-primary/60">{event.agent}</span>
+                  <span className="text-[8px] text-on-surface/20">|</span>
+                  <span className={`text-[8px] font-bold uppercase ${event.impact === 'High' ? 'text-error' : 'text-on-surface/40'}`}>Impact: {event.impact}</span>
+                  <button onClick={() => fetchNeuralInsight(event.event, `Jurisdiction: ${event.jurisdiction}. Impact: ${event.impact}`)} className="ml-auto p-1 rounded hover:bg-white/5 text-primary/30 hover:text-primary transition-all">
+                    <Sparkles className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+                {event.impactedContracts && event.impactedContracts > 0 ? (
+                  <div className="mt-2 flex items-center gap-2 p-1.5 bg-error/10 border border-error/20 rounded-md">
+                    <AlertCircle className="h-3 w-3 text-error" />
+                    <span className="text-[9px] font-bold text-error uppercase tracking-widest">
+                      {event.impactedContracts} Contract{event.impactedContracts > 1 ? 's' : ''} Impacted
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="p-8 bg-on-surface/[0.02] border-t border-outline/10">
           <div className="flex items-center gap-3 mb-4">
@@ -808,18 +838,6 @@ export default function StrategicHub() {
           </div>
         </div>
       </aside>
-
-      {/* Mobile Right Edge Sentinel Trigger */}
-      {!isSentinelOpen && (
-        <button
-          onClick={() => setIsSentinelOpen(true)}
-          aria-label="Open Sentinel panel"
-          className="lg:hidden fixed right-0 z-50 h-14 w-8 rounded-l-xl border border-outline/20 border-r-0 bg-surface-container/95 backdrop-blur-sm shadow-lg flex items-center justify-center text-primary/70 hover:text-primary hover:bg-primary/10 transition-all"
-          style={{ top: `${sentinelTriggerTop}%`, transform: 'translateY(-50%)' }}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      )}
 
       {/* Mobile Sentinel Drawer */}
       <AnimatePresence>
@@ -931,7 +949,34 @@ export default function StrategicHub() {
                 </div>
               )}
 
-              <div className="flex-1" />
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+                <p className="text-[8px] font-bold uppercase tracking-widest text-on-surface/30 mb-4">Active Feed</p>
+                <div className="space-y-4">
+                  {liveAgentFeed.length === 0 && !isDiscovering && (
+                    <div className="p-3 rounded-xl border border-dashed border-outline/20 bg-surface-container-low/40 space-y-2">
+                      <p className="text-[9px] font-bold text-on-surface/55">No active events.</p>
+                      <button
+                        onClick={discoverNewEvent}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-[7px] font-black uppercase tracking-wider text-primary transition-all"
+                      >
+                        <RefreshCw className="h-2.5 w-2.5" />
+                        Retry Feed
+                      </button>
+                    </div>
+                  )}
+                  {liveAgentFeed.slice(0, 4).map((event) => (
+                    <div key={event.id} className="relative pl-4 before:absolute before:left-1 before:top-1 before:bottom-0 before:w-px before:bg-outline/20">
+                      <div className={`absolute left-[-1px] top-1 w-1 h-1 rounded-full ${event.impact === 'High' ? 'bg-error' : event.impact === 'Medium' ? 'bg-warning' : 'bg-success'}`} />
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-[8px] font-black text-on-surface/40 uppercase tracking-tighter">{event.jurisdiction}</span>
+                        <span className="text-[7px] text-on-surface/30">{event.time}</span>
+                      </div>
+                      <p className="text-[9px] font-bold text-on-surface/80 leading-tight mb-1">{event.event}</p>
+                      <span className={`text-[7px] font-bold uppercase ${event.impact === 'High' ? 'text-error' : 'text-on-surface/40'}`}>Impact: {event.impact}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </motion.div>
           </>
         )}

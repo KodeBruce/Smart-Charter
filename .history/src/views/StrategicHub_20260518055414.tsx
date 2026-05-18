@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Zap, Clock, ShieldCheck, Target, 
@@ -76,8 +76,6 @@ type InsightTabKey = 'summary' | 'jurisdictions' | 'precedents' | 'remediations'
 
 export default function StrategicHub() {
   const [activeView, setActiveView] = useState<'all' | 'negotiation' | 'obligations' | 'compliance'>('all');
-  const mainScrollRef = useRef<HTMLElement | null>(null);
-  const [sentinelTriggerTop, setSentinelTriggerTop] = useState(50);
 
   // ─── Real Firestore Data ───────────────────────────────────────────────────
   const [redlineSuggestions, setRedlineSuggestions] = useState<RedlineSuggestion[]>([]);
@@ -420,29 +418,6 @@ export default function StrategicHub() {
     discoverNewEvent();
   }, [isSentinelOpen, liveAgentFeed.length, isDiscovering]);
 
-  useEffect(() => {
-    const scroller = mainScrollRef.current;
-    if (!scroller) return;
-
-    const updateTriggerPosition = () => {
-      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-      if (maxScroll <= 0) {
-        setSentinelTriggerTop(50);
-        return;
-      }
-
-      const progress = Math.min(1, Math.max(0, scroller.scrollTop / maxScroll));
-      setSentinelTriggerTop(34 + (progress * 34));
-    };
-
-    updateTriggerPosition();
-    scroller.addEventListener('scroll', updateTriggerPosition, { passive: true });
-
-    return () => {
-      scroller.removeEventListener('scroll', updateTriggerPosition);
-    };
-  }, [activeView]);
-
 
   return (
     <div className="flex h-full bg-surface overflow-hidden">
@@ -473,9 +448,18 @@ export default function StrategicHub() {
               </button>
             ))}
           </div>
+
+          {/* Mobile Sentinel Toggle Button */}
+          <button
+            onClick={() => setIsSentinelOpen(true)}
+            className="lg:hidden flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-all ml-auto"
+          >
+            <Globe className="h-4 w-4 text-primary" />
+            <span className="text-[8px] font-black text-primary uppercase\">Sentinel</span>
+          </button>
         </header>
 
-        <main ref={mainScrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 space-y-6 md:space-y-10 lg:space-y-16">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 space-y-6 md:space-y-10 lg:space-y-16">
           
           {/* Section 1: AI Redlining Simulator */}
           {(activeView === 'all' || activeView === 'negotiation') && (
@@ -808,18 +792,6 @@ export default function StrategicHub() {
           </div>
         </div>
       </aside>
-
-      {/* Mobile Right Edge Sentinel Trigger */}
-      {!isSentinelOpen && (
-        <button
-          onClick={() => setIsSentinelOpen(true)}
-          aria-label="Open Sentinel panel"
-          className="lg:hidden fixed right-0 z-50 h-14 w-8 rounded-l-xl border border-outline/20 border-r-0 bg-surface-container/95 backdrop-blur-sm shadow-lg flex items-center justify-center text-primary/70 hover:text-primary hover:bg-primary/10 transition-all"
-          style={{ top: `${sentinelTriggerTop}%`, transform: 'translateY(-50%)' }}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      )}
 
       {/* Mobile Sentinel Drawer */}
       <AnimatePresence>
