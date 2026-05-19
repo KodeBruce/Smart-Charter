@@ -45,6 +45,11 @@ if (getApps().length === 0) {
   adminApp = getApps()[0];
 }
 
+function getDb() {
+  const dbId = process.env.VITE_FIREBASE_DATABASE_ID || process.env.FIREBASE_DATABASE_ID;
+  return dbId ? getFirestore(adminApp, dbId) : getFirestore(adminApp);
+}
+
 // ---------------------------------------------------------------------------
 // RAG System — Pure in-memory vector store with Firestore persistence.
 //
@@ -1231,7 +1236,8 @@ Provide a precise, cited answer based ONLY on the excerpts above.`;
   // Server Start & Vite Middleware
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     async function startLocalServer() {
-      const vite = await createViteServer({
+      const { createServer } = await import("vite");
+      const vite = await createServer({
         server: { middlewareMode: true },
         appType: "spa",
       });
