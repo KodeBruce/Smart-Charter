@@ -268,11 +268,32 @@ async function geminiWithRetry<T>(
   }
 
   // Fallback Logic
+  const geminiKey2 = process.env.GEMINI_API_KEY2;
+  
+  if (geminiKey2 && fallbackPrompt) {
+    console.log(`[Fallback] Switching to secondary Gemini API Key (GEMINI_API_KEY2) due to primary rate limit...`);
+    try {
+      // Recreate a secondary instance inside the fallback to avoid closure binding
+      const genAI2 = new GoogleGenerativeAI(geminiKey2);
+      const model2 = genAI2.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const completion = await model2.generateContent({
+        contents: [{ role: 'user', parts: [{ text: fallbackPrompt }] }],
+        generationConfig: fallbackIsJson ? { responseMimeType: "application/json" } : {}
+      });
+      return {
+        response: { text: () => completion.response.text() }
+      } as unknown as T;
+    } catch (err2: any) {
+      console.log(`[Fallback] Secondary Gemini API Key also failed:`, err2?.message || err2);
+      // Fall through to Nvidia NIM
+    }
+  }
+
   if (openai && fallbackPrompt) {
-    console.log(`[Fallback] Switching to Nvidia NIM due to Gemini failure or rate limiting...`);
+    console.log(`[Fallback] Switching to Nvidia NIM (meta/llama-3.1-70b-instruct) due to Gemini failure...`);
     try {
       const completion = await openai.chat.completions.create({
-        model: "google/gemma-3n-e4b-it",
+        model: "meta/llama-3.1-70b-instruct",
         messages: [
           { role: "system", content: fallbackSystemInstruction || "You are a helpful legal AI assistant." },
           { role: "user", content: fallbackPrompt }
