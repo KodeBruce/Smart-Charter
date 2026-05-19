@@ -1,5 +1,17 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
+
+// Polyfills for pdfjs-dist headless ESM compatibility in Node.js
+if (typeof globalThis.DOMMatrix === 'undefined') {
+  (globalThis as any).DOMMatrix = class DOMMatrix {};
+}
+if (typeof globalThis.ImageData === 'undefined') {
+  (globalThis as any).ImageData = class ImageData {};
+}
+if (typeof globalThis.Path2D === 'undefined') {
+  (globalThis as any).Path2D = class Path2D {};
+}
+
 import express from "express";
 import path from "path";
 
@@ -11,7 +23,6 @@ import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import officeparser from 'officeparser';
 import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { chunkText } from './src/lib/ragChunker.js';
 import { getContractOwnerId } from './src/lib/contracts.js';
 import { computeImpactedContractCount } from './src/lib/sentinelImpact.js';
@@ -320,6 +331,7 @@ async function extractDocumentText(file: Express.Multer.File): Promise<string> {
   if (originalExt === 'pdf') {
     try {
       console.log(`[Parser] Running pdfjs-dist pure JS parser for PDF: ${file.originalname}`);
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
       const data = new Uint8Array(file.buffer);
       const loadingTask = pdfjsLib.getDocument({
         data,
