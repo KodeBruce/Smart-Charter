@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
+
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import OpenAI from "openai";
 import multer from "multer";
