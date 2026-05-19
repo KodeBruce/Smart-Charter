@@ -104,12 +104,27 @@ async function embedTexts(texts: string[], apiKey: string): Promise<number[][]> 
   const model = genAI.getGenerativeModel({ model: 'gemini-embedding-2' });
 
   const embeddings: number[][] = [];
+  const batchSize = 100;
 
-  for (let i = 0; i < texts.length; i++) {
-    const result = await model.embedContent(texts[i]);
-    embeddings.push(result.embedding.values);
-    // 1 second delay to prevent 429 Too Many Requests on free tier
-    await new Promise(r => setTimeout(r, 1000));
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const batchTexts = texts.slice(i, i + batchSize);
+    console.log(`[RAG] Embedding batch of ${batchTexts.length} chunks using batchEmbedContents...`);
+    
+    const result = await model.batchEmbedContents({
+      requests: batchTexts.map(text => ({
+        content: { parts: [{ text }] },
+        model: 'models/gemini-embedding-2'
+      }))
+    });
+    
+    for (const emb of result.embeddings) {
+      embeddings.push(emb.values);
+    }
+    
+    // Quick sleep only if there are more batches remaining to prevent 429
+    if (i + batchSize < texts.length) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
   }
 
   return embeddings;
@@ -219,7 +234,7 @@ async function geminiWithRetry<T>(
   fallbackPrompt?: string, 
   fallbackSystemInstruction?: string,
   fallbackIsJson: boolean = false,
-  maxAttempts = 3
+  maxAttempts = 2
 ): Promise<T> {
   let lastError: any;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -227,28 +242,34 @@ async function geminiWithRetry<T>(
       return await geminiFn();
     } catch (err: any) {
       lastError = err;
-      if (err?.status === 429) {
-        let delayMs = 15000;
-        try {
-          const retryInfo = err?.errorDetails?.find((d: any) => d['@type']?.includes('RetryInfo'));
-          if (retryInfo?.retryDelay) {
-            const seconds = parseInt(retryInfo.retryDelay.replace('s', ''), 10);
-            if (!isNaN(seconds)) delayMs = (seconds + 2) * 1000;
-          }
-        } catch { /* use default */ }
+      
+      const isRateLimit = err?.status === 429 || 
+                          err?.message?.includes('429') || 
+                          err?.message?.includes('Quota exceeded') ||
+                          err?.message?.includes('Rate limit');
+                          
+      if (isRateLimit) {
+        // If Nvidia NIM fallback is configured, switch IMMEDIATELY to prevent Vercel 60s runtime timeouts
+        if (openai && fallbackPrompt) {
+          console.log(`[Gemini] Rate limited (429) on attempt ${attempt}. Switching IMMEDIATELY to Nvidia NIM fallback to prevent serverless timeout.`);
+          break; // Break the retry loop and execute fallback logic
+        }
+
+        // If no fallback is available, do a short 2-second retry to avoid holding the serverless function open
         if (attempt < maxAttempts) {
-          console.log(`[Gemini] Rate limited. Retrying in ${delayMs / 1000}s (attempt ${attempt}/${maxAttempts})...`);
+          const delayMs = 2000;
+          console.log(`[Gemini] Rate limited. Retrying in 2s (attempt ${attempt}/${maxAttempts})...`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
           continue;
         }
       }
-      break; // Exit loop on non-429 or if max attempts reached
+      break;
     }
   }
 
   // Fallback Logic
   if (openai && fallbackPrompt) {
-    console.log(`[Fallback] Gemini failed (${lastError?.status || lastError?.message || 'Unknown'}). Switching to Nvidia NIM...`);
+    console.log(`[Fallback] Switching to Nvidia NIM due to Gemini failure or rate limiting...`);
     try {
       const completion = await openai.chat.completions.create({
         model: "google/gemma-3n-e4b-it",
@@ -260,12 +281,11 @@ async function geminiWithRetry<T>(
         top_p: 0.70,
         frequency_penalty: 0.00,
         presence_penalty: 0.00,
-        max_tokens: 4096, // Kept high to prevent incomplete JSON schema responses
+        max_tokens: 4096,
         ...(fallbackIsJson && { response_format: { type: 'json_object' } })
       });
       
       const content = completion.choices[0]?.message?.content || "";
-      // Mock the Gemini response structure so the caller doesn't have to change
       return {
         response: {
           text: () => content
