@@ -112,7 +112,7 @@ async function embedTexts(texts: string[], apiKey: string): Promise<number[][]> 
     
     const result = await model.batchEmbedContents({
       requests: batchTexts.map(text => ({
-        content: { parts: [{ text }] },
+        content: { role: 'user', parts: [{ text }] },
         model: 'models/gemini-embedding-2'
       }))
     });
