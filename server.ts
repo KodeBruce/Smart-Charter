@@ -264,6 +264,7 @@ async function geminiWithRetry<T>(
 
 
 const app = express();
+app.get('/api/health', (req,res)=>res.json({status:'ok'}));
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   app.post('/api/speechmatics/realtime-token', requireAuth, async (req, res) => {
