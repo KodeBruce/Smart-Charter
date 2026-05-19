@@ -324,8 +324,7 @@ async function extractDocumentText(file: Express.Multer.File): Promise<string> {
       const loadingTask = pdfjsLib.getDocument({
         data,
         useSystemFonts: true,
-        disableFontFace: true,
-        ignoreErrors: true
+        disableFontFace: true
       });
       const pdf = await loadingTask.promise;
       let fullText = '';
