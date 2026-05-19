@@ -10,9 +10,9 @@ import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import officeparser from 'officeparser';
-import { chunkText } from './src/lib/ragChunker';
-import { getContractOwnerId } from './src/lib/contracts';
-import { computeImpactedContractCount } from './src/lib/sentinelImpact';
+import { chunkText } from './src/lib/ragChunker.js';
+import { getContractOwnerId } from './src/lib/contracts.js';
+import { computeImpactedContractCount } from './src/lib/sentinelImpact.js';
 
 // ---------------------------------------------------------------------------
 // Firebase Admin SDK — used server-side only for ID token verification.
@@ -37,10 +37,10 @@ if (getApps().length === 0) {
     }
   }
 
-  adminApp = initializeApp({
+  try { adminApp = initializeApp({
     projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID,
     ...(credentialObj ? { credential: credentialObj } : {})
-  });
+  }); } catch(err) { console.error('Firebase Init Error:', err); }
 } else {
   adminApp = getApps()[0];
 }

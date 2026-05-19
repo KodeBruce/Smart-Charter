@@ -16,3 +16,4 @@ firebase-applet-config.json
 *.doc
 test_contract.txt
 
+.vercel
