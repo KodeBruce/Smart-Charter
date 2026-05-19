@@ -10,6 +10,8 @@ import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import officeparser from 'officeparser';
+import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { chunkText } from './src/lib/ragChunker.js';
 import { getContractOwnerId } from './src/lib/contracts.js';
 import { computeImpactedContractCount } from './src/lib/sentinelImpact.js';
@@ -303,7 +305,44 @@ async function extractDocumentText(file: Express.Multer.File): Promise<string> {
     return file.buffer.toString('utf-8');
   }
 
-  const validExts = ['docx', 'pptx', 'xlsx', 'odt', 'odp', 'ods', 'pdf', 'rtf', 'md', 'html', 'csv'];
+  // 1. High-Performance Pure JS Parser for DOCX (Word Documents)
+  if (originalExt === 'docx') {
+    try {
+      console.log(`[Parser] Running Mammoth pure JS parser for DOCX: ${file.originalname}`);
+      const result = await mammoth.extractRawText({ buffer: file.buffer });
+      return result.value;
+    } catch (err: any) {
+      console.error("[Parser Error] Mammoth DOCX parsing failed, falling back:", err);
+    }
+  }
+
+  // 2. High-Performance Pure JS Parser for PDF Documents
+  if (originalExt === 'pdf') {
+    try {
+      console.log(`[Parser] Running pdfjs-dist pure JS parser for PDF: ${file.originalname}`);
+      const data = new Uint8Array(file.buffer);
+      const loadingTask = pdfjsLib.getDocument({
+        data,
+        useSystemFonts: true,
+        disableFontFace: true,
+        ignoreErrors: true
+      });
+      const pdf = await loadingTask.promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+      return fullText;
+    } catch (err: any) {
+      console.error("[Parser Error] pdfjs-dist PDF parsing failed, falling back:", err);
+    }
+  }
+
+  // 3. Fallback to officeparser for other office extensions
+  const validExts = ['pptx', 'xlsx', 'odt', 'odp', 'ods', 'rtf', 'md', 'html', 'csv'];
   const safeExt = validExts.includes(originalExt) ? originalExt : undefined;
   
   try {
@@ -311,8 +350,6 @@ async function extractDocumentText(file: Express.Multer.File): Promise<string> {
     return parsed.toText();
   } catch (error) {
     console.error("[Document Parser Error]:", error);
-    // If officeparser fails completely, attempt to return a basic string representation
-    // or let the AI try to parse it via inlineData natively if it's a PDF.
     throw new Error(`Unsupported document format or corrupted file. Extension detected: ${originalExt}`);
   }
 }
